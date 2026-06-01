@@ -1,0 +1,2387 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ASYNC_OS v3.0 — GHOST PROTOCOL</title>
+<style>
+/* ── THEMES ─────────────────────────────────────────────────────────────── */
+:root {
+  --bg:#080c10; --panel:#0e1318; --border:#00cc55; --primary:#00ff66;
+  --accent:#6622cc; --alert:#ff2244; --warn:#ffaa00; --dim:#1a2a1a;
+  --text:#b8ffcc; --scanline:rgba(0,255,102,0.025); --glow:0 0 10px rgba(0,255,102,0.3);
+  --panel2:#111a11; --hilight:#00ff66;
+}
+.th-wraith{--bg:#06060f;--panel:#0d0b18;--border:#aa44ff;--primary:#cc88ff;--accent:#ff44aa;--alert:#ff2244;--warn:#ffaa00;--dim:#1a0a2a;--text:#e0ccff;--scanline:rgba(170,68,255,0.03);--glow:0 0 10px rgba(170,68,255,0.4);--panel2:#100820;--hilight:#ff44aa;}
+.th-bastion{--bg:#060d06;--panel:#0b140b;--border:#33ff88;--primary:#66ffaa;--accent:#00cc44;--alert:#ff4422;--warn:#ffcc00;--dim:#0a2010;--text:#ccffdd;--scanline:rgba(51,255,136,0.025);--glow:0 0 10px rgba(51,255,136,0.35);--panel2:#0d170d;--hilight:#00cc44;}
+.th-broker{--bg:#0e0b04;--panel:#181208;--border:#ffcc00;--primary:#ffdd44;--accent:#ff8800;--alert:#ff3322;--warn:#ff8800;--dim:#2a1a00;--text:#fff0cc;--scanline:rgba(255,204,0,0.03);--glow:0 0 10px rgba(255,204,0,0.35);--panel2:#1a1505;--hilight:#ff8800;}
+.th-phantom{--bg:#090004;--panel:#120008;--border:#ff0044;--primary:#ff3366;--accent:#cc0033;--alert:#ff6600;--warn:#ff6600;--dim:#2a0010;--text:#ffccdd;--scanline:rgba(255,0,68,0.03);--glow:0 0 10px rgba(255,0,68,0.4);--panel2:#150010;--hilight:#cc0033;}
+.th-archon{--bg:#000a12;--panel:#041018;--border:#0088ff;--primary:#22aaff;--accent:#0055cc;--alert:#ff4400;--warn:#ffaa00;--dim:#001828;--text:#cce8ff;--scanline:rgba(0,136,255,0.025);--glow:0 0 10px rgba(0,136,255,0.35);--panel2:#051520;--hilight:#0055cc;}
+.th-vessel{--bg:#000808;--panel:#050f0f;--border:#00ffee;--primary:#00ffee;--accent:#00ccbb;--alert:#ff2244;--warn:#ffcc00;--dim:#001a18;--text:#ccfffa;--scanline:rgba(0,255,238,0.025);--glow:0 0 14px rgba(0,255,238,0.45);--panel2:#061212;--hilight:#00ccbb;}
+.th-ghost{--bg:#080808;--panel:#0f0f0f;--border:#555555;--primary:#888888;--accent:#444444;--alert:#cc2222;--warn:#888800;--dim:#1a1a1a;--text:#cccccc;--scanline:rgba(128,128,128,0.02);--glow:none;--panel2:#111111;--hilight:#555555;}
+.th-neon{--bg:#050010;--panel:#0a0520;--border:#ff00ff;--primary:#ff44ff;--accent:#00ffff;--alert:#ff4400;--warn:#ffff00;--dim:#200030;--text:#ffccff;--scanline:rgba(255,0,255,0.03);--glow:0 0 12px rgba(255,0,255,0.5);--panel2:#08041a;--hilight:#00ffff;}
+.th-ice{--bg:#040812;--panel:#080f1e;--border:#88ccff;--primary:#aaddff;--accent:#4499cc;--alert:#ff4444;--warn:#ffcc88;--dim:#0a1a2a;--text:#ddeeff;--scanline:rgba(136,204,255,0.02);--glow:0 0 8px rgba(136,204,255,0.3);--panel2:#0a1220;--hilight:#4499cc;}
+
+*{box-sizing:border-box;margin:0;padding:0;}
+html,body{width:100%;height:100%;overflow:hidden;background:var(--bg);color:var(--text);font-family:'Courier New',Courier,monospace;font-size:13px;}
+body::after{content:"";pointer-events:none;position:fixed;inset:0;z-index:9000;
+  background:repeating-linear-gradient(0deg,var(--scanline) 0,var(--scanline) 1px,transparent 1px,transparent 3px);
+  animation:scanflicker 12s infinite;}
+@keyframes scanflicker{0%,100%{opacity:1}96%{opacity:1}96.5%{opacity:.5}97%{opacity:1}99%{opacity:.7}99.3%{opacity:1}}
+
+/* ── LAYOUT ─────────────────────────────────────────────────────────────── */
+#root{display:grid;grid-template-rows:44px 1fr;height:100vh;padding:5px;gap:5px;}
+#main{display:grid;grid-template-columns:230px 1fr 1fr;gap:5px;min-height:0;}
+
+/* ── PANELS ─────────────────────────────────────────────────────────────── */
+.panel{background:var(--panel);border:1px solid var(--border);border-radius:2px;
+  display:flex;flex-direction:column;overflow:hidden;box-shadow:var(--glow);}
+.panel.alert-pulse{animation:apulse .4s infinite;}
+@keyframes apulse{0%,100%{border-color:var(--border)}50%{border-color:var(--alert)}}
+.ph{font-size:11px;text-transform:uppercase;letter-spacing:1.5px;color:var(--accent);
+  border-bottom:1px solid var(--dim);padding:5px 9px;flex-shrink:0;
+  display:flex;align-items:center;justify-content:space-between;font-weight:bold;}
+.scroll{flex:1;overflow-y:auto;padding:7px;font-size:12px;line-height:1.5;}
+.scroll::-webkit-scrollbar{width:3px;}
+.scroll::-webkit-scrollbar-thumb{background:var(--dim);}
+
+/* ── HUD ─────────────────────────────────────────────────────────────────── */
+#hud{display:flex;align-items:center;gap:12px;padding:4px 12px;
+  background:var(--panel);border:1px solid var(--border);border-radius:2px;
+  box-shadow:var(--glow);flex-wrap:nowrap;overflow:hidden;}
+.hg{display:flex;align-items:center;gap:5px;font-size:11px;font-weight:bold;white-space:nowrap;}
+.hl{color:var(--accent);text-transform:uppercase;font-size:10px;}
+.tr{width:60px;height:5px;background:#111;border:1px solid var(--dim);border-radius:1px;overflow:hidden;}
+.br{height:100%;width:0%;transition:width .35s,background .35s;background:var(--primary);}
+.br.w{background:var(--warn);}
+.br.a{background:var(--alert);}
+.hv{min-width:34px;font-size:11px;color:var(--primary);}
+#hud-r{margin-left:auto;display:flex;gap:12px;align-items:center;}
+.hpill{font-size:10px;padding:1px 7px;border:1px solid var(--accent);border-radius:1px;color:var(--accent);}
+.pill{display:inline-block;font-size:9px;padding:1px 5px;border-radius:1px;margin-left:3px;font-weight:bold;}
+.pg{background:rgba(0,255,102,.1);color:var(--primary);border:1px solid var(--primary);}
+.pr{background:rgba(255,34,68,.1);color:var(--alert);border:1px solid var(--alert);}
+.py{background:rgba(255,170,0,.1);color:var(--warn);border:1px solid var(--warn);}
+.pp{background:rgba(102,34,204,.1);color:var(--accent);border:1px solid var(--accent);}
+
+/* ── TRACE BAR ───────────────────────────────────────────────────────────── */
+#trace-wrap{position:fixed;top:52px;right:5px;width:220px;z-index:500;display:none;}
+#trace-wrap.active{display:block;}
+#trace-box{background:var(--panel);border:1px solid var(--alert);border-radius:2px;padding:6px 8px;box-shadow:0 0 10px rgba(255,34,68,.5);}
+#trace-label{font-size:10px;color:var(--alert);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;}
+#trace-track{background:#111;height:8px;border-radius:1px;overflow:hidden;}
+#trace-fill{height:100%;background:var(--alert);transition:width .5s linear;}
+#trace-time{font-size:11px;color:var(--alert);margin-top:3px;text-align:right;}
+
+/* ── LEFT SIDEBAR ────────────────────────────────────────────────────────── */
+#sidebar{display:flex;flex-direction:column;}
+#snav{display:flex;gap:3px;padding:5px;border-bottom:1px solid var(--dim);flex-shrink:0;flex-wrap:wrap;}
+.snb{background:transparent;border:1px solid var(--dim);color:var(--dim);
+  font-family:inherit;font-size:10px;padding:2px 6px;cursor:pointer;border-radius:1px;text-transform:uppercase;}
+.snb.on{border-color:var(--primary);color:var(--primary);}
+.snb:hover{border-color:var(--accent);color:var(--accent);}
+.app{flex:1;display:flex;flex-direction:column;min-height:0;}
+.app.hide{display:none;}
+
+/* ── CENTER COLUMN ───────────────────────────────────────────────────────── */
+#center{display:flex;flex-direction:column;gap:5px;}
+#map-panel{flex:1;min-height:0;}
+#cw{flex:1;position:relative;min-height:0;}
+canvas{display:block;width:100%;height:100%;}
+#hop-bar{padding:3px 7px;font-size:10px;color:var(--dim);border-top:1px solid var(--dim);flex-shrink:0;min-height:20px;}
+#remote-panel{flex-shrink:0;display:none;flex-direction:column;max-height:260px;}
+#remote-panel.show{display:flex;}
+#remote-body{flex:1;overflow-y:auto;padding:0;}
+
+/* ── WEBSITE RENDERER ────────────────────────────────────────────────────── */
+.site-frame{width:100%;height:100%;border:none;background:#fff;}
+.ascii-terminal{background:#000;color:#00ff66;padding:10px;font-size:11px;white-space:pre;overflow-y:auto;height:100%;}
+.eos-device{background:#1a1a2e;border:2px solid #444;border-radius:8px;padding:10px;font-size:11px;height:100%;overflow-y:auto;}
+
+/* ── RIGHT COLUMN (terminal + IRC tabs) ──────────────────────────────────── */
+#right-col{display:flex;flex-direction:column;gap:5px;min-height:0;}
+#right-tabs{display:flex;gap:3px;flex-shrink:0;}
+.rtab{background:var(--panel2);border:1px solid var(--dim);color:var(--dim);
+  font-family:inherit;font-size:10px;padding:3px 10px;cursor:pointer;border-radius:1px 1px 0 0;text-transform:uppercase;}
+.rtab.on{border-color:var(--border);color:var(--primary);background:var(--panel);}
+.rtab.notify{color:var(--warn)!important;border-color:var(--warn)!important;}
+#terminal,#irc-panel{flex:1;min-height:0;display:none;}
+#terminal.show,#irc-panel.show{display:flex;flex-direction:column;}
+
+/* Terminal */
+#term-out{flex:1;overflow-y:auto;padding:7px;font-size:12px;line-height:1.5;white-space:pre-wrap;}
+#term-out::-webkit-scrollbar{width:3px;}
+#term-out::-webkit-scrollbar-thumb{background:var(--dim);}
+.tc{color:var(--dim);}
+.tok{color:var(--primary);}
+.terr{color:var(--alert);}
+.tinf{color:var(--accent);}
+.twrn{color:var(--warn);}
+.tsys{color:#444;}
+.thack{color:#00ffff;font-weight:bold;}
+#irow{display:flex;align-items:center;border-top:1px solid var(--dim);padding:5px 7px;gap:5px;flex-shrink:0;}
+#prompt{color:var(--accent);font-size:12px;white-space:nowrap;font-weight:bold;}
+#cmd{background:transparent;border:none;outline:none;color:var(--primary);font-family:inherit;font-size:12px;flex:1;}
+
+/* IRC */
+#irc-panel{display:none;flex-direction:column;}
+#irc-panel.show{display:flex;}
+#irc-chanbar{display:flex;gap:2px;padding:5px;border-bottom:1px solid var(--dim);flex-shrink:0;flex-wrap:wrap;}
+.chanb{background:transparent;border:1px solid var(--dim);color:var(--dim);
+  font-family:inherit;font-size:10px;padding:2px 7px;cursor:pointer;border-radius:1px;}
+.chanb.on{border-color:var(--primary);color:var(--primary);}
+.chanb.unread{border-color:var(--warn);color:var(--warn);}
+#irc-out{flex:1;overflow-y:auto;padding:7px;font-size:12px;line-height:1.5;}
+#irc-out::-webkit-scrollbar{width:3px;}
+#irc-out::-webkit-scrollbar-thumb{background:var(--dim);}
+.im-sys{color:#444;}
+.im-npc{color:var(--accent);}
+.im-you{color:var(--primary);}
+.im-warn{color:var(--warn);}
+.im-hot{color:var(--alert);}
+.im-cmd{color:#555;font-style:italic;}
+#irc-input-row{display:flex;align-items:center;border-top:1px solid var(--dim);padding:5px 7px;gap:5px;flex-shrink:0;}
+#irc-prompt{color:var(--accent);font-size:12px;white-space:nowrap;}
+#irc-input{background:transparent;border:none;outline:none;color:var(--primary);font-family:inherit;font-size:12px;flex:1;}
+
+/* Misc UI */
+.ubtn{background:transparent;border:1px solid var(--primary);color:var(--primary);
+  font-family:inherit;font-size:10px;padding:2px 7px;cursor:pointer;border-radius:1px;text-transform:uppercase;}
+.ubtn:hover{background:var(--primary);color:#000;}
+.ubtn.d{border-color:var(--alert);color:var(--alert);}
+.ubtn.d:hover{background:var(--alert);color:#000;}
+.ubtn.a{border-color:var(--accent);color:var(--accent);}
+.ubtn.a:hover{background:var(--accent);color:#000;}
+.frow{display:flex;justify-content:space-between;align-items:center;padding:3px 0;border-bottom:1px solid var(--dim);gap:4px;}
+.fname{color:var(--primary);flex:1;}
+.proc-row{display:flex;justify-content:space-between;align-items:center;padding:2px 0;border-bottom:1px solid var(--dim);font-size:11px;}
+.mission-card{border:1px solid var(--dim);border-radius:1px;padding:7px;margin-bottom:5px;cursor:pointer;}
+.mission-card:hover{border-color:var(--accent);}
+.mission-card.active{border-color:var(--primary);}
+.faction-card{border:1px solid var(--dim);padding:7px;margin-bottom:5px;border-radius:1px;}
+.faction-card.joined{border-color:var(--primary);}
+.store-item{display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-bottom:1px solid var(--dim);}
+</style>
+</head>
+<body>
+
+<!-- TRACE BAR -->
+<div id="trace-wrap">
+  <div id="trace-box">
+    <div id="trace-label">⚠ TRACE IN PROGRESS</div>
+    <div id="trace-track"><div id="trace-fill" style="width:0%"></div></div>
+    <div id="trace-time">--s remaining</div>
+  </div>
+</div>
+
+<div id="root">
+<!-- HUD -->
+<div id="hud">
+  <div class="hg"><span class="hl">RAM</span><span class="hv" id="h-ram">4.0G</span><div class="tr"><div class="br" id="b-ram"></div></div></div>
+  <div class="hg"><span class="hl">CPU</span><span class="hv" id="h-cpu">8%</span><div class="tr"><div class="br" id="b-cpu"></div></div></div>
+  <div class="hg"><span class="hl">TEMP</span><span class="hv" id="h-tmp">98°F</span><div class="tr"><div class="br" id="b-tmp"></div></div></div>
+  <div class="hg"><span class="hl">COOL</span><span class="hv" id="h-cool">100%</span><div class="tr"><div class="br" id="b-cool"></div></div></div>
+  <div class="hg"><span class="hl">WT</span><span class="hv" id="h-wt">2/16</span><div class="tr"><div class="br" id="b-wt"></div></div></div>
+  <div id="hud-r">
+    <span style="font-size:10px;color:var(--primary)" id="h-ping">PING:8ms</span>
+    <span style="font-size:10px;color:var(--warn)" id="h-notor">REP:0</span>
+    <span class="hpill" id="h-faction">NO FACTION</span>
+    <div class="hg"><span class="hl">CR</span><span class="hv" id="h-cr">500</span></div>
+    <div class="hg"><span class="hl">HOPS</span><span class="hv" id="h-hops">0</span></div>
+  </div>
+</div>
+
+<div id="main">
+<!-- LEFT SIDEBAR -->
+<div class="panel" id="sidebar">
+  <div id="snav">
+    <button class="snb on" onclick="showApp('files')">Files</button>
+    <button class="snb" onclick="showApp('notes')">Notes</button>
+    <button class="snb" onclick="showApp('mail')">Mail</button>
+    <button class="snb" onclick="showApp('missions')">Missions</button>
+    <button class="snb" onclick="showApp('factions')">Factions</button>
+    <button class="snb" onclick="showApp('rig')">Rig</button>
+    <button class="snb" onclick="showApp('themes')">Themes</button>
+  </div>
+  <div class="app" id="app-files">
+    <div class="ph"><span>Filesystem</span><span id="fs-host" style="color:var(--dim);font-size:10px">localhost</span></div>
+    <div class="scroll" id="files-out"></div>
+  </div>
+  <div class="app hide" id="app-notes">
+    <div class="ph"><span>Notes</span><button class="ubtn" onclick="newNote()">+New</button></div>
+    <div class="scroll" id="notes-out"></div>
+  </div>
+  <div class="app hide" id="app-mail">
+    <div class="ph"><span>Mail</span><span id="mail-count" style="color:var(--warn);font-size:10px"></span></div>
+    <div class="scroll" id="mail-out"></div>
+  </div>
+  <div class="app hide" id="app-missions">
+    <div class="ph"><span>Active Missions</span></div>
+    <div class="scroll" id="missions-out"></div>
+  </div>
+  <div class="app hide" id="app-factions">
+    <div class="ph"><span>Factions</span></div>
+    <div class="scroll" id="factions-out"></div>
+  </div>
+  <div class="app hide" id="app-rig">
+    <div class="ph"><span>Rig Status</span></div>
+    <div class="scroll" id="rig-out"></div>
+  </div>
+  <div class="app hide" id="app-themes">
+    <div class="ph"><span>Themes</span></div>
+    <div class="scroll" id="themes-out"></div>
+  </div>
+</div>
+
+<!-- CENTER -->
+<div id="center">
+  <div class="panel" id="map-panel" style="flex:1;min-height:0;">
+    <div class="ph"><span>SYS_TOPOLOGY</span><span id="map-info" style="color:var(--dim);font-size:10px">PASSIVE</span></div>
+    <div id="cw"><canvas id="netCanvas"></canvas></div>
+    <div id="hop-bar">No hops active.</div>
+  </div>
+  <div class="panel" id="remote-panel">
+    <div class="ph">
+      <span id="rp-title">REMOTE</span>
+      <div style="display:flex;gap:4px">
+        <button class="ubtn d" onclick="doDisconnect()">Disconnect</button>
+      </div>
+    </div>
+    <div id="remote-body" style="flex:1;overflow:hidden;"></div>
+  </div>
+</div>
+
+<!-- RIGHT COL -->
+<div id="right-col">
+  <div id="right-tabs">
+    <button class="rtab on" onclick="switchRTab('terminal')">Terminal</button>
+    <button class="rtab" id="irc-tab" onclick="switchRTab('irc')">IRC</button>
+    <button class="rtab" id="proc-tab" onclick="switchRTab('procs')">Processes</button>
+  </div>
+  <div class="panel" id="terminal" style="flex:1;" onclick="document.getElementById('cmd').focus()">
+    <div class="ph"><span>ASYNC_OS // TERMINAL</span><span id="term-host" style="color:var(--dim);font-size:10px">root@localhost</span></div>
+    <div id="term-out"></div>
+    <div id="irow"><span id="prompt">root@localhost:/# </span><input id="cmd" type="text" autocomplete="off" spellcheck="false" autofocus></div>
+  </div>
+  <div class="panel" id="irc-panel" style="flex:1;">
+    <div class="ph"><span>IRC</span><span id="irc-chan-label" style="color:var(--dim);font-size:10px">#general</span></div>
+    <div id="irc-chanbar">
+      <button class="chanb on" onclick="switchChan('general')">#general</button>
+      <button class="chanb" onclick="switchChan('contracts')">#contracts</button>
+      <button class="chanb" onclick="switchChan('tech')">#tech</button>
+      <button class="chanb" id="chan-faction" style="display:none" onclick="switchChan('faction')">#faction</button>
+      <button class="chanb" id="chan-deepnet" style="display:none" onclick="switchChan('deepnet')">#deepnet</button>
+    </div>
+    <div id="irc-out"></div>
+    <div id="irc-input-row">
+      <span id="irc-prompt" style="color:var(--accent)">you@#general&gt; </span>
+      <input id="irc-input" type="text" autocomplete="off" spellcheck="false" placeholder="type /help for commands">
+    </div>
+  </div>
+  <div class="panel" id="procs-panel" style="flex:1;display:none;flex-direction:column;">
+    <div class="ph"><span>Process Manager</span><span style="color:var(--dim);font-size:10px" id="proc-ram-info"></span></div>
+    <div class="scroll" id="procs-out"></div>
+  </div>
+</div>
+</div>
+</div>
+
+<script>
+'use strict';
+// ══════════════════════════════════════════════════════════════════════════════
+// ASYNC_OS v3.0 — GHOST PROTOCOL
+// ══════════════════════════════════════════════════════════════════════════════
+
+// ── THEMES ────────────────────────────────────────────────────────────────────
+const THEMES = {
+  default: { cls:'', name:'ASYNC Default', locked:false, desc:'Standard green phosphor.' },
+  wraith:  { cls:'th-wraith',  name:'Wraith Void',    locked:true, desc:'Purple shadow aesthetic. Stolen or earned.' },
+  bastion: { cls:'th-bastion', name:'Bastion Fortress',locked:true, desc:'Deep green fortress theme.' },
+  broker:  { cls:'th-broker',  name:'Broker Gold',    locked:true, desc:'Amber market aesthetic.' },
+  phantom: { cls:'th-phantom', name:'Phantom Circuit', locked:true, desc:'Red-black. PHANTOM operative skin.' },
+  archon:  { cls:'th-archon',  name:'Archon Division', locked:true, desc:'Cold blue. ARCHON operative skin.' },
+  vessel:  { cls:'th-vessel',  name:'VESSEL Core',     locked:true, desc:'Stolen from AXIOM\'s final node.' },
+  ghost:   { cls:'th-ghost',   name:'Dead Channel',    locked:true, desc:'Greyscale. Found in the deep net.' },
+  neon:    { cls:'th-neon',    name:'Neon Bleed',      locked:true, desc:'Magenta/cyan. Purchasable.' },
+  ice:     { cls:'th-ice',     name:'Ice Shell',       locked:true, desc:'Cold blue-white. Purchasable.' },
+};
+
+// ── RIG ───────────────────────────────────────────────────────────────────────
+const RIG = {
+  ramTotal: 8, ramMax: 64,
+  cpuSpeed: 2.4, cpuCores: 2,
+  cooling: { dissipation:1.0, stress:0, broken:false },
+  weightCap: 16, weightUsed: 2,
+  upgrades: [],
+};
+
+// ── PROCESSES ─────────────────────────────────────────────────────────────────
+let PROCS = [];  // {pid, name, ram, cpu, target, startedAt}
+let nextPid = 1;
+function spawnProc(name, ram, cpu, target) {
+  const p = { pid: nextPid++, name, ram, cpu, target, startedAt: Date.now() };
+  PROCS.push(p);
+  renderProcs();
+  return p;
+}
+function killProc(pid) {
+  PROCS = PROCS.filter(p => p.pid !== pid);
+  renderProcs();
+}
+function procsRam() { return PROCS.reduce((s,p)=>s+p.ram,0); }
+function procsCpu() { return PROCS.reduce((s,p)=>s+p.cpu,0); }
+
+// ── GAME STATE ────────────────────────────────────────────────────────────────
+const GS = {
+  host:'localhost', wallet:500, notoriety:0,
+  faction:null, factionRep:{wraith:0,bastion:0,broker:0,phantom:0,archon:0},
+  notes:[], discovered:['localhost','192.168.1.10'],
+  hops:[], hopPing:0, maxHops:3,
+  history:[], histIdx:-1,
+  ramUsed:0.4, cpuLoad:8, tempF:98, coolHealth:100,
+  stolenThemes:[], currentTheme:'default',
+  openPorts:{},   // ip -> [portNums cracked]
+  adminOn:[],     // ips where we have admin
+  logs:{},        // ip -> [log entries]
+  vesselShards:[], // collected shard IDs
+  act:1, questFlags:{},
+  shadowThreshold:0, // rises with notoriety+hacks, triggers at 80
+  shadowInvites:{phantom:false, archon:false},
+  shadowChoice:null, // 'phantom'|'archon'|'neither'|null
+  newGamePlus:false,
+  activeContracts:{}, // id -> {deadline, completed}
+  traceActive:false, traceTarget:'', traceSecs:0, traceMax:0,
+  currentChan:'general', chanUnread:{},
+};
+
+// ── NETWORK ───────────────────────────────────────────────────────────────────
+// nodeType: 'server'|'corp'|'personal'|'eos'|'relay'
+// renderType: 'website'|'ascii'|'eos'|'database'
+const NET = {
+  'localhost':{
+    name:'Home Rig', x:.1, y:.45, nodeType:'server', renderType:'ascii',
+    connections:['192.168.1.10','10.88.0.1'],
+    ports:{22:{type:'SSH',cracked:true},21:{type:'FTP',cracked:true}},
+    adminAccess:true,
+    fs:{
+      '/home/readme.txt':    {content:'ASYNC_OS v3.0 — Ghost Protocol\nType \'help\' for commands.\nType \'scan\' to map the network.',prot:false},
+      '/home/who_was_bit.txt':{content:'They said he died in a car crash.\nHe didn\'t.\nFind VESSEL.\n\n—V',prot:false,questItem:'act1_start'},
+      '/sys/theme.cfg':      {content:'--primary:#00ff66\n--bg:#080c10\ntheme=default',prot:false,isTheme:true,themeId:'default'},
+      '/log/sys.log':        {content:'[BOOT] Clean start.\n[INFO] Cooling nominal.\n[WARN] Unrecognized probe origin: 10.77.0.1',prot:false,isLog:true},
+    }
+  },
+  '192.168.1.10':{
+    name:'Dev Sandbox', x:.32, y:.2, nodeType:'server', renderType:'ascii',
+    connections:['localhost','10.0.0.5'],
+    ports:{22:{type:'SSH',cracked:false},21:{type:'FTP',cracked:false}},
+    firewallLayers:1, adminAccess:false,
+    traceSpeed:60,
+    fs:{
+      '/home/notes.txt':  {content:'Test box. Safe.\nPassword for the vault: AxI0M_7734',prot:false},
+      '/home/access.key': {content:'-----BEGIN RSA KEY-----\nAAAB3Nz...truncated',prot:true},
+      '/log/access.log':  {content:'[INFO] Last login: unknown\n[WARN] Multiple failed auth attempts.',prot:false,isLog:true},
+    }
+  },
+  '10.0.0.5':{
+    name:'KRONOS Gateway', x:.6, y:.15, nodeType:'corp', renderType:'website',
+    connections:['192.168.1.10','172.20.0.1','10.11.0.99'],
+    ports:{22:{type:'SSH',cracked:false},21:{type:'FTP',cracked:false},80:{type:'HTTP',cracked:false},25:{type:'SMTP',cracked:false}},
+    firewallLayers:3, adminAccess:false,
+    traceSpeed:35,
+    website:`<div style="background:#f5f5f5;color:#111;height:100%;overflow-y:auto;font-family:Arial,sans-serif;">
+      <div style="background:#1a1a2e;color:white;padding:12px 20px;display:flex;align-items:center;gap:12px;">
+        <div style="font-size:20px;font-weight:bold;letter-spacing:2px;color:#00aaff">KRONOS</div>
+        <div style="font-size:11px;color:#aac">SYSTEMS CORPORATION</div>
+        <div style="margin-left:auto;font-size:11px;color:#888">SECURE PORTAL v4.2</div>
+      </div>
+      <div style="padding:20px;max-width:800px;margin:0 auto;">
+        <h2 style="color:#1a1a2e;margin-bottom:10px">Kronos Systems — Infrastructure Solutions</h2>
+        <p style="color:#444;line-height:1.6;margin-bottom:10px">Kronos Systems provides enterprise-grade cybersecurity infrastructure to government and private sector clients worldwide. Our proprietary VESSEL-class adaptive security framework represents the next generation of autonomous threat response.</p>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin:16px 0">
+          <div style="background:#fff;border:1px solid #ddd;padding:10px;border-radius:3px"><div style="font-weight:bold;color:#1a1a2e;margin-bottom:4px">ADAPTIVE DEFENSE</div><div style="font-size:11px;color:#666">Self-learning threat models that evolve with attack patterns in real-time.</div></div>
+          <div style="background:#fff;border:1px solid #ddd;padding:10px;border-radius:3px"><div style="font-weight:bold;color:#1a1a2e;margin-bottom:4px">ZERO-DAY RESPONSE</div><div style="font-size:11px;color:#666">Automated patch deployment before vulnerabilities are publicly disclosed.</div></div>
+          <div style="background:#fff;border:1px solid #ddd;padding:10px;border-radius:3px"><div style="font-weight:bold;color:#1a1a2e;margin-bottom:4px">VESSEL FRAMEWORK</div><div style="font-size:11px;color:#666">Classified. Available to authorized partners under NDA.</div></div>
+        </div>
+        <div style="background:#fff3cd;border:1px solid #ffc107;padding:8px;border-radius:2px;font-size:11px;color:#856404">⚠ This is a secure internal portal. Unauthorized access is monitored and prosecuted under federal statute 18 U.S.C. § 1030.</div>
+      </div>
+    </div>`,
+    fs:{
+      '/var/www/index.html':{content:'[rendered above]',prot:false},
+      '/etc/shadow':        {content:'root:$6$AXVM...:18923:0:99999:7:::',prot:true},
+      '/home/admin/vessel_project.enc':{content:'[ENCRYPTED — requires decypher + password]',prot:true,encrypted:true,password:'AxI0M_7734',
+        decrypted:'PROJECT VESSEL — STATUS REPORT\n\nFragment assembly: 4/7 shards recovered.\nLocation of remaining shards: distributed across dark-net relay nodes.\nWarning: Axiom\'s failsafe detected. If all 7 shards are assembled by an unauthorized party, VESSEL will execute self-destruct protocol.\nNote: Failsafe can be bypassed if assembled by someone Axiom pre-authorized.\n\nKRONOS Board approval: PENDING\nEstimated weaponization timeline: 90 days post-assembly',
+        questItem:'act2_vessel_doc'},
+      '/etc/theme.cfg':     {content:'--primary:#00aaff\n--bg:#000a12\ntheme=archon',prot:false,isTheme:true,themeId:'archon'},
+      '/log/access.log':    {content:'[AUTH] Admin session: 10.77.0.1\n[WARN] External probe detected\n[INFO] VESSEL shard #3 transferred to secure archive',prot:false,isLog:true},
+    },
+    faction:'kronos'
+  },
+  '172.20.0.1':{
+    name:'Shadow Market', x:.45, y:.65, nodeType:'server', renderType:'ascii',
+    connections:['10.0.0.5','10.99.0.1','10.88.0.1'],
+    ports:{22:{type:'SSH',cracked:false},80:{type:'HTTP',cracked:false}},
+    firewallLayers:1, adminAccess:false,
+    traceSpeed:90,
+    store:'open',
+    fs:{
+      '/home/catalog.txt':{content:'Open Market — All runners welcome.\nType: shop\n\n[ITEMS]\nssh-crack-basic   | 50cr  | 1wt | Basic SSH cracker tool\nftp-bounce        | 50cr  | 1wt | FTP exploit tool\nsmtp-overflow     | 80cr  | 1wt | SMTP port exploit\nweb-worm          | 80cr  | 1wt | HTTP/web exploit\nsql-bleed         | 120cr | 1wt | SQL port exploit\nram-4g            | 150cr | 2wt | +4G RAM\nproxy-pkg         | 100cr | 1wt | +2 max hops\nlog-wipe          | 60cr  | 0wt | Auto-wipe logs on disconnect\ntrace-slow        | 200cr | 1wt | Slows trace timers by 30%',prot:false},
+      '/log/access.log':  {content:'[TRADE] Various sessions. No logs retained by policy.',prot:false,isLog:true},
+    }
+  },
+  '10.88.0.1':{
+    name:'Relay Alpha', x:.22, y:.72, nodeType:'server', renderType:'ascii',
+    connections:['localhost','10.88.0.2','172.20.0.1'],
+    ports:{22:{type:'SSH',cracked:false}},
+    firewallLayers:0, adminAccess:false,
+    isRelay:true,
+    traceSpeed:999,
+    fs:{
+      '/home/relay.cfg':{content:'[RELAY NODE]\nNo logs retained.\nHop freely.',prot:false},
+      '/log/hop.log':   {content:'[HOP] Traffic forwarded. Origin masked.',prot:false,isLog:true},
+    }
+  },
+  '10.88.0.2':{
+    name:'Relay Beta (Dead End)', x:.12, y:.85, nodeType:'server', renderType:'ascii',
+    connections:['10.88.0.1'],
+    ports:{22:{type:'SSH',cracked:false}},
+    firewallLayers:0, adminAccess:false,
+    isRelay:true, deadEnd:true,
+    traceSpeed:999,
+    fs:{
+      '/home/relay.cfg':{content:'[DEAD END RELAY]\nAll traffic terminates here.\nGreat for misdirection.',prot:false},
+      '/log/hop.log':   {content:'[HOP] Terminal node. No egress.',prot:false,isLog:true},
+    }
+  },
+  '10.11.0.99':{
+    name:'Wraith Den', x:.82, y:.3, nodeType:'server', renderType:'ascii',
+    connections:['10.0.0.5','10.11.1.0'],
+    ports:{22:{type:'SSH',cracked:false},1433:{type:'SQL',cracked:false}},
+    firewallLayers:2, adminAccess:false,
+    traceSpeed:45,
+    faction:'wraith',
+    fs:{
+      '/home/welcome.txt':{content:'You found us.\nNot many do.\n\nType: join wraith — if you\'re serious.\nWe don\'t take passengers.\n\n— WRAITH COLLECTIVE',prot:false},
+      '/etc/theme.cfg':   {content:'--primary:#cc88ff\n--bg:#06060f\ntheme=wraith',prot:false,isTheme:true,themeId:'wraith'},
+      '/home/axiom_note.txt':{content:'AXIOM was one of ours before he went solo.\nWe think he faked his death.\nWe think VESSEL is still out there.\n\nIf you\'re reading this, maybe you\'re the one he was waiting for.',prot:false,questItem:'act2_wraith_lore'},
+      '/log/access.log':{content:'[AUTH] Members only.\n[WARN] External probe. Tracing...',prot:false,isLog:true},
+    }
+  },
+  '10.11.1.0':{
+    name:'Wraith Shop', x:.92, y:.45, nodeType:'server', renderType:'ascii',
+    connections:['10.11.0.99'],
+    ports:{22:{type:'SSH',cracked:false}},
+    firewallLayers:1, adminAccess:false,
+    store:'wraith', factionRequired:'wraith',
+    traceSpeed:50,
+    fs:{
+      '/home/menu.txt':{content:'Wraith gear. Members only.\nType: shop',prot:false},
+      '/etc/theme.cfg':{content:'--primary:#cc88ff\n--bg:#06060f\ntheme=wraith',prot:false,isTheme:true,themeId:'wraith'},
+    }
+  },
+  '10.99.0.1':{
+    name:'Broker Exchange', x:.7, y:.78, nodeType:'corp', renderType:'website',
+    connections:['172.20.0.1','10.0.0.5'],
+    ports:{22:{type:'SSH',cracked:false},80:{type:'HTTP',cracked:false},25:{type:'SMTP',cracked:false}},
+    firewallLayers:2, adminAccess:false,
+    store:'broker', factionRequired:'broker',
+    traceSpeed:55,
+    faction:'broker',
+    website:`<div style="background:#0a0800;color:#ffdd44;height:100%;overflow-y:auto;font-family:'Courier New',monospace;padding:15px;">
+      <div style="border-bottom:1px solid #ff8800;padding-bottom:8px;margin-bottom:12px;display:flex;justify-content:space-between;">
+        <div style="font-size:16px;font-weight:bold;letter-spacing:3px;">THE BROKER SYNDICATE</div>
+        <div style="font-size:10px;color:#888">PRIVATE EXCHANGE v2.1</div>
+      </div>
+      <div style="color:#ff8800;margin-bottom:8px;font-size:11px">// INFORMATION IS CURRENCY. KNOWLEDGE IS POWER. //</div>
+      <div style="color:#aaa;font-size:11px;line-height:1.7;margin-bottom:12px">
+        We deal in intel, not weapons. Our network spans every faction, every corp, every government agency with a dirty secret.<br>
+        We don't fight wars. We profit from them.<br><br>
+        <span style="color:#ffdd44">Membership is by invitation only.</span> If you're reading this, you've already passed the first test.
+      </div>
+      <div style="border:1px solid #332200;padding:8px;font-size:11px;color:#888">
+        CURRENT MARKET INDEX<br>
+        <span style="color:#ffdd44">VESSEL Shards</span>: PRICELESS | <span style="color:#ffdd44">KRONOS Stock</span>: VOLATILE | <span style="color:#ffdd44">ARCHON Intel</span>: PREMIUM
+      </div>
+    </div>`,
+    fs:{
+      '/home/welcome.txt':{content:'You found us without being invited.\nThat\'s either impressive or a red flag.\n\nType: join broker\n\nWe\'ll be watching either way.\n\n— THE SYNDICATE',prot:false},
+      '/etc/theme.cfg':   {content:'--primary:#ffdd44\n--bg:#0e0b04\ntheme=broker',prot:false,isTheme:true,themeId:'broker'},
+      '/home/axiom_file.enc':{content:'[ENCRYPTED]',prot:false,encrypted:true,password:'VESSEL_IS_ALIVE',
+        decrypted:'AXIOM to SYNDICATE — Final Transmission\n\nIf you\'re reading this, I\'m gone.\nVESSEL is real. 7 shards. I hid them.\nKRONOS has 3. I scattered the rest.\nThe failsafe is keyed to someone I flagged years ago — a puzzle solver.\nThey won\'t know it\'s them until they try to assemble all 7.\nDon\'t let KRONOS finish this.\n\n— AX',
+        questItem:'act3_axiom_letter'},
+      '/log/trade.log':   {content:'[TRADE] VESSEL shard data purchased from anonymous seller.\n[INFO] Origin: 10.77.0.1 — Flagged.',prot:false,isLog:true},
+    }
+  },
+  '10.77.0.1':{
+    name:'Unknown — ENCRYPTED', x:.5, y:.42, nodeType:'server', renderType:'ascii',
+    connections:['10.0.0.5','10.99.0.1','10.88.0.1'],
+    ports:{22:{type:'SSH',cracked:false},80:{type:'HTTP',cracked:false},25:{type:'SMTP',cracked:false},1433:{type:'SQL',cracked:false}},
+    firewallLayers:4, adminAccess:false,
+    hidden:true,
+    traceSpeed:25,
+    fs:{
+      '/home/identity.enc':{content:'[ENCRYPTED — this will reveal who is behind the VESSEL operation]',prot:true,encrypted:true,password:'GH0ST_PR0T0C0L',
+        decrypted:'This node belongs to AXIOM.\nHe is alive.\nHe has been watching.\nHe seeded 3 of the remaining VESSEL shards here.\nThe 4th shard is in PHANTOM CIRCUIT\'s possession.\nThe 5th shard is in ARCHON DIVISION\'s mainframe.\nThe 6th shard is on this very node — /data/shard_6.dat\nThe 7th shard is with AXIOM himself.\n\nIf you\'ve come this far, you are who he thought you were.\nLook for: axiom_final.msg',
+        questItem:'act3_axiom_node'},
+      '/data/shard_6.dat':{content:'[VESSEL SHARD #6 — FRAGMENT DATA]\n01001010 10110101 00110011...\n[Encrypted payload — 847KB]',prot:false,vesselShard:'shard6'},
+      '/home/axiom_final.msg':{content:'I know you found this.\nI built the failsafe around your solve pattern from 2019.\nYou won\'t remember the puzzle. But I do.\n\nVESSEL is not a weapon. It never was.\nIt\'s a key.\nTo what, I\'ll tell you when you have all 7.\n\nThree remain:\n— One is with PHANTOM CIRCUIT\n— One is with ARCHON\n— One is with me\n\nYou know what you have to do.\n\n— AX',
+        prot:false,questItem:'act4_axiom_contact'},
+    }
+  },
+  // PHANTOM CIRCUIT node
+  '10.33.0.1':{
+    name:'PHANTOM CIRCUIT', x:.2, y:.35, nodeType:'server', renderType:'ascii',
+    connections:['10.88.0.1','10.77.0.1'],
+    ports:{22:{type:'SSH',cracked:false},21:{type:'FTP',cracked:false},80:{type:'HTTP',cracked:false},25:{type:'SMTP',cracked:false},1433:{type:'SQL',cracked:false}},
+    firewallLayers:5, adminAccess:false,
+    hidden:true, shadowGroup:'phantom',
+    traceSpeed:20,
+    fs:{
+      '/home/welcome.enc':{content:'[ENCRYPTED]',prot:false,encrypted:true,password:'WE_FOUND_YOU',
+        decrypted:'Runner.\nWe\'ve been watching since your 40th hack.\nYou\'re good enough to be one of us.\n\nPHANTOM CIRCUIT is an invitation-only network.\nWe operate outside every law in every jurisdiction.\nWe don\'t work for governments. We ARE the threat governments fear.\n\nARCHON will contact you too. They\'ll tell you we\'re terrorists.\nThey kidnap runners and use them as slave operators.\nWe\'ve seen their detention facilities.\n\nThe choice is yours. But there IS a choice.\nReply via IRC #deepnet when you\'re ready.\n\n— PHANTOM',
+        questItem:'act4_phantom_invite'},
+      '/data/shard_4.dat':{content:'[VESSEL SHARD #4]\n[LOCKED — admin access required]',prot:true,vesselShard:'shard4'},
+      '/etc/theme.cfg':   {content:'--primary:#ff3366\n--bg:#090004\ntheme=phantom',prot:false,isTheme:true,themeId:'phantom'},
+    }
+  },
+  // ARCHON DIVISION node
+  '10.55.0.1':{
+    name:'ARCHON DIVISION', x:.8, y:.65, nodeType:'corp', renderType:'website',
+    connections:['10.0.0.5','10.77.0.1'],
+    ports:{22:{type:'SSH',cracked:false},21:{type:'FTP',cracked:false},80:{type:'HTTP',cracked:false},25:{type:'SMTP',cracked:false},1433:{type:'SQL',cracked:false}},
+    firewallLayers:5, adminAccess:false,
+    hidden:true, shadowGroup:'archon',
+    traceSpeed:22,
+    website:`<div style="background:#000a12;color:#22aaff;height:100%;overflow-y:auto;font-family:'Courier New',monospace;padding:15px;">
+      <div style="border-bottom:1px solid #004488;padding-bottom:8px;margin-bottom:12px;">
+        <div style="font-size:13px;font-weight:bold;letter-spacing:3px;">ARCHON DIVISION</div>
+        <div style="font-size:9px;color:#444;letter-spacing:2px;">CLASSIFICATION: ABOVE TOP SECRET // EYES ONLY</div>
+      </div>
+      <div style="color:#0055cc;margin-bottom:10px;font-size:11px">// AUTHORIZED ACCESS ONLY. ALL SESSIONS LOGGED AND MONITORED. //</div>
+      <div style="color:#aac;font-size:11px;line-height:1.7">
+        ARCHON DIVISION is a Tier-1 classified cyber operations unit.<br>
+        We do not officially exist.<br><br>
+        Our mandate: identify, recruit, and deploy exceptional independent operators before hostile state and non-state actors do.<br><br>
+        <span style="color:#22aaff">PHANTOM CIRCUIT</span> has caused three infrastructure failures in the last 18 months. Power grids. Water treatment. We have the bodies to prove it. They are not freedom fighters.<br><br>
+        <span style="color:#22aaff">You have been identified as a candidate.</span>
+      </div>
+    </div>`,
+    fs:{
+      '/home/recruitment.enc':{content:'[ENCRYPTED]',prot:false,encrypted:true,password:'CLEARANCE_GAMMA',
+        decrypted:'CANDIDATE IDENTIFIED — CLEARANCE PENDING\n\nRunner, we know who you are.\nWe\'ve been monitoring your activity since your notoriety hit threshold.\n\nWe are not the enemy. We are the people who stop enemies.\nPHANTOM CIRCUIT are terrorists. Their last operation took down a water treatment grid. Eleven people died.\n\nWe offer: protection, resources, legal immunity, and a paycheck.\nWe ask: your skills, directed by us.\n\nARCHON does not kidnap. We do not have detention facilities.\nThat\'s PHANTOM propaganda.\n\nDecide in IRC #deepnet.\n\n— ARCHON DIVISION, Operative Handler K',
+        questItem:'act4_archon_invite'},
+      '/data/shard_5.dat':{content:'[VESSEL SHARD #5]\n[LOCKED — admin access required]',prot:true,vesselShard:'shard5'},
+      '/etc/theme.cfg':   {content:'--primary:#22aaff\n--bg:#000a12\ntheme=archon',prot:false,isTheme:true,themeId:'archon'},
+    }
+  },
+  // AXIOM's final node - only accessible in act 4
+  '10.00.0.1':{
+    name:'AXIOM — FINAL NODE', x:.5, y:.25, nodeType:'server', renderType:'ascii',
+    connections:['10.77.0.1'],
+    ports:{22:{type:'SSH',cracked:false},21:{type:'FTP',cracked:false},80:{type:'HTTP',cracked:false},25:{type:'SMTP',cracked:false},1433:{type:'SQL',cracked:false}},
+    firewallLayers:0, adminAccess:false,
+    hidden:true, specialUnlock:'act4_all_shards',
+    traceSpeed:999,
+    fs:{
+      '/home/axiom.txt':{content:'You made it.\nAll 7 shards.\nYou\'re the one I built this for.\n\nVESSEL is not a weapon.\nIt\'s an AI that maps and patches zero-days — autonomously, permanently, for everyone.\nFree. Open. Unkillable.\n\nKRONOS wants to sell it. PHANTOM wants to weaponize it.\nARCHON wants to lock it behind a clearance level.\n\nI built a kill switch into the failsafe.\nBut I also built a RELEASE protocol.\n\nThe choice is yours now.\n\nType: vessel [release|destroy|give phantom|give archon]\n\n— AXIOM',
+        prot:false,questItem:'act4_final'},
+      '/data/shard_7.dat':{content:'[VESSEL SHARD #7 — FINAL]\n[AXIOM\'s own fragment]',prot:false,vesselShard:'shard7'},
+      '/data/vessel_core.enc':{content:'[VESSEL CORE — 7 SHARDS REQUIRED TO COMPILE]',prot:true,encrypted:true,password:'ALL_SHARDS',
+        decrypted:'VESSEL v1.0 — AXIOM\'S FINAL BUILD\nAutonomous zero-day mapper. Patches across all connected networks.\nNo owner. No operator. No off switch.\nThis is what they were afraid of.',
+        questItem:'vessel_core'},
+    }
+  },
+  // N0DE Honeypot - act 1 test
+  '10.22.0.1':{
+    name:'N0DE Honeypot', x:.42, y:.55, nodeType:'server', renderType:'ascii',
+    connections:['192.168.1.10','10.88.0.1'],
+    ports:{22:{type:'SSH',cracked:false},21:{type:'FTP',cracked:false}},
+    firewallLayers:1, adminAccess:false,
+    traceSpeed:120,
+    questGate:'act1_contact',
+    fs:{
+      '/home/test_notice.txt':{content:'If you\'re reading this, you passed.\nN0DE is watching.\nWe\'ll be in touch via your mail.\n\nWelcome.\n\n— N0DE',prot:false,questItem:'act1_honeypot_pass'},
+      '/log/access.log':{content:'[TEST NODE — INTENTIONALLY ACCESSIBLE]\n[CANDIDATE PERFORMANCE LOGGED]',prot:false,isLog:true},
+    }
+  },
+  // Bastion node
+  '10.44.0.1':{
+    name:'Bastion Fortress', x:.88, y:.2, nodeType:'server', renderType:'ascii',
+    connections:['10.0.0.5'],
+    ports:{22:{type:'SSH',cracked:false},1433:{type:'SQL',cracked:false}},
+    firewallLayers:3, adminAccess:false,
+    traceSpeed:80,
+    faction:'bastion',
+    hidden:true,
+    fs:{
+      '/home/welcome.txt':{content:'BASTION ORDER\nDefend. Endure. Prevail.\n\nYou found us through patience, not speed.\nThat\'s our kind of runner.\n\nType: join bastion',prot:false},
+      '/etc/theme.cfg':   {content:'--primary:#66ffaa\n--bg:#060d06\ntheme=bastion',prot:false,isTheme:true,themeId:'bastion'},
+      '/home/shard_2.dat':{content:'[VESSEL SHARD #2]\nBastion has been guarding this.\nFor AXIOM.',prot:false,vesselShard:'shard2'},
+    }
+  },
+};
+
+// ── VESSEL SHARDS MAP ─────────────────────────────────────────────────────────
+const VESSEL_SHARDS = {
+  shard1:{loc:'10.22.0.1', desc:'N0DE Honeypot', file:'/home/shard_1.dat'},
+  shard2:{loc:'10.44.0.1', desc:'Bastion Fortress', file:'/home/shard_2.dat'},
+  shard3:{loc:'10.0.0.5',  desc:'KRONOS Gateway archive', file:'/archive/shard_3.dat'},
+  shard4:{loc:'10.33.0.1', desc:'PHANTOM CIRCUIT', file:'/data/shard_4.dat'},
+  shard5:{loc:'10.55.0.1', desc:'ARCHON DIVISION', file:'/data/shard_5.dat'},
+  shard6:{loc:'10.77.0.1', desc:'AXIOM\'s node', file:'/data/shard_6.dat'},
+  shard7:{loc:'10.00.0.1', desc:'AXIOM final node', file:'/data/shard_7.dat'},
+};
+// Add shard 1 and 3 to network
+NET['10.22.0.1'].fs['/home/shard_1.dat'] = {content:'[VESSEL SHARD #1]\nFirst fragment. The beginning.',prot:false,vesselShard:'shard1'};
+NET['10.0.0.5'].fs['/archive/shard_3.dat'] = {content:'[VESSEL SHARD #3]\nKRONOS has been holding this.',prot:true,vesselShard:'shard3'};
+
+// ── MAIL ──────────────────────────────────────────────────────────────────────
+const MAILBOX = [
+  {
+    id:'boot',from:'sys@async.os',subj:'System Boot — ASYNC_OS v3.0',read:false,
+    body:`ASYNC_OS v3.0 initialized. Ghost Protocol build.
+
+Hardware status:
+  RAM:     4.0G / 8.0G max
+  CPU:     2.4GHz × 2 cores
+  Cooling: 100% — nominal
+  Weight:  2 / 16 units used
+
+Reminder: manage your temperature.
+Heat kills hardware. And sometimes runners.
+
+Check /home/who_was_bit.txt on your local filesystem.`
+  },
+  {
+    id:'v_act1',from:'V@n0de.net',subj:'Re: the file you found',read:false,
+    body:`I see you found the file.
+
+Good.
+
+My name doesn't matter. I go by V.
+I was close to AXIOM before he died — or didn't die.
+Nobody's sure anymore.
+
+What I know: AXIOM was building something called VESSEL.
+KRONOS Systems found out and wanted it.
+AXIOM disappeared three days before his presentation.
+
+I need someone with your particular skills to dig.
+Start with the Sandbox at 192.168.1.10.
+There's a password in there you'll need later.
+
+N0DE is recruiting. They're at 10.22.0.1.
+It's a test. Pass it.
+
+— V`,questItem:'act1_start'
+  },
+  {
+    id:'node_recruit',from:'recruit@n0de.net',subj:'N0DE Recruitment — Candidate #447',read:false,
+    body:`Candidate.
+
+You've been flagged as a person of interest.
+N0DE is a hacker collective. Hacktivist, mostly.
+We take work. We have standards.
+
+Your test node is at 10.22.0.1.
+Get in, read the file, get out clean.
+Delete your logs.
+
+If you make it in without tripping the trace, you're in.
+If the trace catches you, we'll know you're sloppy.
+
+— N0DE Recruitment`,questItem:'act1_n0de'
+  },
+];
+
+// ── QUESTS ────────────────────────────────────────────────────────────────────
+const QUESTS = {
+  // ACT 1
+  q1_boot:      {id:'q1_boot',     name:'Ghost in the Machine',  act:1, main:true,
+    desc:'Read /home/who_was_bit.txt and check your mail.', reward:{cr:0},
+    complete: ()=> GS.questFlags.read_who_was_bit},
+  q1_sandbox:   {id:'q1_sandbox',  name:'Into the Sandbox',      act:1, main:true,
+    desc:'Access 192.168.1.10 and find the password.', reward:{cr:50},
+    complete: ()=> GS.questFlags.found_sandbox_password},
+  q1_n0de:      {id:'q1_n0de',     name:'N0DE Initiation',       act:1, main:true,
+    desc:'Crack 10.22.0.1, read the file, delete logs, disconnect clean.', reward:{cr:100,theme:'ghost'},
+    complete: ()=> GS.questFlags.n0de_pass},
+  // ACT 2
+  q2_kronos:    {id:'q2_kronos',   name:'Rattling KRONOS',       act:2, main:true,
+    desc:'Probe and crack KRONOS Gateway. Find the VESSEL project doc.', reward:{cr:200},
+    complete: ()=> GS.questFlags.kronos_vessel_doc},
+  q2_shard1:    {id:'q2_shard1',   name:'Fragment One',          act:2, main:true,
+    desc:'Collect VESSEL Shard #1 from N0DE Honeypot.', reward:{cr:50},
+    complete: ()=> GS.vesselShards.includes('shard1')},
+  q2_shard2:    {id:'q2_shard2',   name:'Fragment Two',          act:2, main:false,
+    desc:'Find VESSEL Shard #2 — rumored to be with Bastion.', reward:{cr:50},
+    complete: ()=> GS.vesselShards.includes('shard2')},
+  q2_shard3:    {id:'q2_shard3',   name:'Fragment Three',        act:2, main:true,
+    desc:'Shard #3 is in KRONOS\'s secure archive.', reward:{cr:150},
+    complete: ()=> GS.vesselShards.includes('shard3')},
+  q2_wraith:    {id:'q2_wraith',   name:'Wraith Contact',        act:2, main:false,
+    desc:'Find the Wraith Den and read their AXIOM file.', reward:{cr:100},
+    complete: ()=> GS.questFlags.wraith_lore},
+  q2_broker:    {id:'q2_broker',   name:'The Syndicate\'s Files',act:2, main:false,
+    desc:'Find the Broker Exchange and decrypt their AXIOM file.', reward:{cr:120},
+    complete: ()=> GS.questFlags.broker_axiom},
+  // ACT 3
+  q3_axiom_node:{id:'q3_axiom_node',name:'Ghost Protocol',       act:3, main:true,
+    desc:'Find AXIOM\'s hidden node at 10.77.0.1 and decrypt identity.enc.', reward:{cr:300,theme:'vessel'},
+    complete: ()=> GS.questFlags.axiom_node_found},
+  q3_shard6:    {id:'q3_shard6',   name:'Fragment Six',          act:3, main:true,
+    desc:'Collect shard #6 from AXIOM\'s node.', reward:{cr:100},
+    complete: ()=> GS.vesselShards.includes('shard6')},
+  q3_shadow:    {id:'q3_shadow',   name:'Watchers in the Dark',  act:3, main:true,
+    desc:'Two shadow groups have noticed you. Find and decrypt their invitations.', reward:{cr:0},
+    complete: ()=> GS.shadowInvites.phantom && GS.shadowInvites.archon},
+  // ACT 4
+  q4_choose:    {id:'q4_choose',   name:'The Alignment',         act:4, main:true,
+    desc:'Choose your allegiance in IRC #deepnet — or choose neither.', reward:{cr:0},
+    complete: ()=> GS.shadowChoice !== null},
+  q4_shards_45: {id:'q4_shards_45',name:'The Final Fragments',   act:4, main:true,
+    desc:'Acquire shards 4 and 5 from your chosen path.', reward:{cr:200},
+    complete: ()=> GS.vesselShards.includes('shard4') && GS.vesselShards.includes('shard5')},
+  q4_axiom_final:{id:'q4_axiom_final',name:'End of the Line',    act:4, main:true,
+    desc:'Find AXIOM at 10.00.0.1 and assemble VESSEL.', reward:{cr:500,theme:'vessel'},
+    complete: ()=> GS.questFlags.vessel_assembled},
+};
+
+// ── ACTIVE QUEST TRACKING ─────────────────────────────────────────────────────
+let activeQuestLog = ['q1_boot','q1_sandbox','q1_n0de'];
+let completedQuests = [];
+
+// ── SIDE CONTRACTS ────────────────────────────────────────────────────────────
+const SIDE_CONTRACTS = [
+  {id:'sc1', title:'Score Wipe',      poster:'d3f4ult',  cr:80,  time:300,
+   desc:'Delete /saves/score.dat from 192.168.1.10.',
+   check: ()=> !NET['192.168.1.10']?.fs['/saves/score.dat'],
+   setup: ()=> { if(NET['192.168.1.10']) NET['192.168.1.10'].fs['/saves/score.dat']={content:'SCORE: 9999999 — mengsk',prot:false}; }},
+  {id:'sc2', title:'Mail Intercept',  poster:'V4P0R',    cr:150, time:240,
+   desc:'Read the private mail on Relay Alpha (/home/private.msg).',
+   check: ()=> GS.questFlags['sc2_read'],
+   setup: ()=> { if(NET['10.88.0.1']) NET['10.88.0.1'].fs['/home/private.msg']={content:'Meet at the usual place. Bring the data. — K',prot:false,questItem:'sc2_read'}; }},
+  {id:'sc3', title:'Log Burn',        poster:'c0el',     cr:60,  time:180,
+   desc:'Delete all logs on 192.168.1.10.',
+   check: ()=> !Object.keys(NET['192.168.1.10']?.fs||{}).some(k=>k.includes('/log')),
+   setup: ()=>{}},
+  {id:'sc4', title:'Plant a File',    poster:'anon_7',   cr:120, time:300,
+   desc:'Write /home/planted.txt to 192.168.1.10 (use: plant [text]).',
+   check: ()=> !!NET['192.168.1.10']?.fs['/home/planted.txt'],
+   setup: ()=>{}},
+  {id:'sc5', title:'Deep Recon',      poster:'V4P0R',    cr:200, time:360,
+   desc:'Find and cat any file on 10.77.0.1.',
+   check: ()=> GS.questFlags['sc5_recon'],
+   setup: ()=>{}},
+  {id:'sc6', title:'Thermal Stress',  poster:'d3f4ult',  cr:100, time:240,
+   desc:'Maintain CPU above 60% for 60 seconds. Show you can handle it.',
+   check: ()=> GS.questFlags['sc6_thermal'],
+   setup: ()=>{}},
+  {id:'sc7', title:'Proxy Chain',     poster:'c0el',     cr:80,  time:180,
+   desc:'Build a 3-hop chain and connect to any node.',
+   check: ()=> GS.questFlags['sc7_proxy'],
+   setup: ()=>{}},
+  {id:'sc8', title:'Theft & Trace',   poster:'V4P0R',    cr:250, time:300,
+   desc:'Steal a protected file from KRONOS Gateway.',
+   check: ()=> GS.questFlags['sc8_steal'],
+   setup: ()=>{}},
+];
+
+// ── IRC ───────────────────────────────────────────────────────────────────────
+const IRC_HISTORY = {
+  general:[], contracts:[], tech:[], faction:[], deepnet:[]
+};
+const NPC_HANDLES = ['d3f4ult','c0el','V4P0R','anon_7','kr0nos_watch','n0de_bot'];
+const NPC_COLORS  = {d3f4ult:'#ffaa00',c0el:'#00ffcc',V4P0R:'#cc88ff',anon_7:'#ff6666',kr0nos_watch:'#888888',n0de_bot:'#00ff66'};
+
+function ircMsg(chan, user, text, cls) {
+  const ts = new Date().toTimeString().slice(0,5);
+  IRC_HISTORY[chan] = IRC_HISTORY[chan] || [];
+  IRC_HISTORY[chan].push({ts, user, text, cls});
+  if(IRC_HISTORY[chan].length > 200) IRC_HISTORY[chan].shift();
+  if(GS.currentChan === chan) renderIrcChan(chan);
+  else markChanUnread(chan);
+}
+
+function markChanUnread(chan) {
+  GS.chanUnread[chan] = (GS.chanUnread[chan]||0) + 1;
+  document.querySelectorAll('.chanb').forEach(b=>{
+    if(b.textContent === '#'+chan) b.classList.add('unread');
+  });
+  if(chan !== 'general') document.getElementById('irc-tab')?.classList.add('notify');
+}
+
+// IRC NPC ambient scripts
+const IRC_GENERAL_SCRIPT = [
+  [20000,  'd3f4ult',   'anyone else seeing weird traffic on the relay nodes?'],
+  [45000,  'c0el',      'always. ignore it unless it\'s patterned.'],
+  [70000,  'd3f4ult',   'it\'s patterned.'],
+  [90000,  'c0el',      '...then don\'t ignore it.'],
+  [130000, 'anon_7',    '>>> 10.77.0.1 <<< something is awake there'],
+  [160000, 'kr0nos_watch','friendly reminder: KRONOS legal is scanning this channel. watch what you post.'],
+  [200000, 'd3f4ult',   'lmao sure they are'],
+  [230000, 'V4P0R',     'they actually are. I\'ve seen the court orders.'],
+  [280000, 'd3f4ult',   'ok that\'s less funny'],
+  [320000, 'anon_7',    '>>> VESSEL <<< it\'s real. I\'ve seen a shard.'],
+  [370000, 'c0el',      'careful what you say here.'],
+  [420000, 'n0de_bot',  '[N0DE-BOT] Contract board updated. Check #contracts.'],
+  [480000, 'kr0nos_watch','just doing my job. no need to be paranoid.'],
+  [540000, 'd3f4ult',   'the paranoid ones are still here. the non-paranoid ones aren\'t.'],
+  [600000, 'c0el',      'axiom was paranoid. look what happened to him.'],
+  [660000, 'd3f4ult',   'nobody knows what happened to him'],
+  [720000, 'c0el',      'exactly.'],
+];
+
+const IRC_TECH_SCRIPT = [
+  [15000,  'd3f4ult',   'hot tip: FTPBounce runs slow, start it first while you work other ports'],
+  [50000,  'anon_7',    '>>> SSH default port 22. FTP default 21. SMTP 25. HTTP 80. SQL 1433. <<<'],
+  [90000,  'c0el',      'always delete your logs. always. even on nodes you think don\'t matter.'],
+  [140000, 'd3f4ult',   'learned that the hard way lmao'],
+  [190000, 'anon_7',    '>>> the password AxI0M_7734 will be useful <<< (source: trust me)'],
+  [250000, 'c0el',      'don\'t share passwords in plaintext, anon'],
+  [280000, 'anon_7',    '>>> it\'s already out there <<<'],
+  [340000, 'd3f4ult',   'hops cost RAM. more hops = slower trace but higher resource load. plan accordingly.'],
+  [400000, 'c0el',      'cooling matters more than people think. a dead cooler mid-hack is a dead run.'],
+  [460000, 'anon_7',    '>>> 10.77.0.1 >>> requires all port types to crack <<<'],
+  [530000, 'd3f4ult',   'nobody can crack that thing'],
+  [560000, 'anon_7',    '>>> someone will <<<'],
+];
+
+const IRC_CONTRACTS_SCRIPT = [
+  [5000,   'n0de_bot',  '[CONTRACT BOARD] Active contracts: check /claim [id] to accept'],
+  [10000,  'V4P0R',     '[JOB] Log Burn on Sandbox — 60cr. Fast. Clean. /claim sc3'],
+  [30000,  'd3f4ult',   '[JOB] Score wipe, you know the drill — 80cr. /claim sc1'],
+  [60000,  'c0el',      '[JOB] Mail intercept on Relay Alpha — 150cr. Not easy. /claim sc2'],
+  [120000, 'V4P0R',     '[JOB] Deep recon on 10.77.0.1 — 200cr. If you can even get there. /claim sc5'],
+  [180000, 'n0de_bot',  '[REMINDER] Unclaimed contracts expire after their time limit.'],
+  [240000, 'V4P0R',     '[JOB] Theft & Trace — steal a protected KRONOS file — 250cr. /claim sc8'],
+  [300000, 'd3f4ult',   '[JOB] Build a 3-hop proxy chain — 80cr proof of skill. /claim sc7'],
+  [360000, 'c0el',      '[JOB] Thermal stress test — 100cr. Hold 60% CPU for 60s. /claim sc6'],
+  [420000, 'V4P0R',     '[JOB] Plant evidence on Sandbox — 120cr. /claim sc4'],
+];
+
+// deepnet messages triggered by shadow threshold
+function triggerDeepnet() {
+  document.getElementById('chan-deepnet').style.display = '';
+  ircMsg('deepnet','---','[CHANNEL UNLOCKED — #deepnet — threshold reached]','im-sys');
+  setTimeout(()=>ircMsg('deepnet','PHANTOM','runner. we\'ve been watching you. you\'re good.','im-hot'),3000);
+  setTimeout(()=>ircMsg('deepnet','PHANTOM','ARCHON will contact you too. don\'t trust them. /msg PHANTOM to talk.','im-hot'),8000);
+  setTimeout(()=>ircMsg('deepnet','ARCHON','Candidate. PHANTOM are terrorists. We have the bodies to prove it.','im-warn'),15000);
+  setTimeout(()=>ircMsg('deepnet','ARCHON','We offer protection and purpose. /msg ARCHON to respond.','im-warn'),20000);
+  setTimeout(()=>ircMsg('deepnet','---','[Find and decrypt their nodes to read full invitations. Then: /msg PHANTOM join | /msg ARCHON join | or type: neither]','im-sys'),28000);
+}
+
+// ── STORE DATA ────────────────────────────────────────────────────────────────
+const OPEN_STORE_ITEMS = [
+  {id:'ssh-crack-basic', name:'SSHcrack.exe',     cost:50,  wt:1, desc:'+SSH cracker tool (port 22)',
+   effect:()=>{ GS.questFlags.has_sshcrack=true; tprint('SSHcrack.exe installed.','tok'); }},
+  {id:'ftp-bounce',      name:'FTPBounce.exe',    cost:50,  wt:1, desc:'+FTP exploit (port 21)',
+   effect:()=>{ GS.questFlags.has_ftpbounce=true; tprint('FTPBounce.exe installed.','tok'); }},
+  {id:'smtp-overflow',   name:'SMTPoverflow.exe', cost:80,  wt:1, desc:'+SMTP exploit (port 25)',
+   effect:()=>{ GS.questFlags.has_smtp=true; tprint('SMTPoverflow.exe installed.','tok'); }},
+  {id:'web-worm',        name:'WebWorm.exe',      cost:80,  wt:1, desc:'+HTTP exploit (port 80)',
+   effect:()=>{ GS.questFlags.has_webworm=true; tprint('WebWorm.exe installed.','tok'); }},
+  {id:'sql-bleed',       name:'SQLbleed.exe',     cost:120, wt:1, desc:'+SQL exploit (port 1433)',
+   effect:()=>{ GS.questFlags.has_sql=true; tprint('SQLbleed.exe installed.','tok'); }},
+  {id:'ram-4g',          name:'RAM Stick 4G',     cost:150, wt:2, desc:'+4G RAM',
+   effect:()=>{ RIG.ramTotal=Math.min(RIG.ramTotal+4,64); RIG.weightUsed+=2; tprint('+4G RAM installed.','tok'); }},
+  {id:'proxy-pkg',       name:'Proxy Package',    cost:100, wt:1, desc:'+2 max hops',
+   effect:()=>{ GS.maxHops+=2; RIG.weightUsed+=1; tprint('Proxy Package: max hops +2.','tok'); }},
+  {id:'log-wipe',        name:'AutoLogWipe.exe',  cost:60,  wt:0, desc:'Auto-wipe logs on disconnect',
+   effect:()=>{ GS.questFlags.auto_log_wipe=true; tprint('AutoLogWipe active.','tok'); }},
+  {id:'trace-slow',      name:'TraceSlow.exe',    cost:200, wt:1, desc:'All trace timers -30%',
+   effect:()=>{ GS.questFlags.trace_slow=true; RIG.weightUsed+=1; tprint('TraceSlow.exe installed. Traces 30% slower.','tok'); }},
+  {id:'decypher',        name:'Decypher.exe',     cost:100, wt:1, desc:'Decrypt .enc files with password',
+   effect:()=>{ GS.questFlags.has_decypher=true; tprint('Decypher.exe installed.','tok'); }},
+  {id:'forkbomb',        name:'ForkBomb.exe',     cost:180, wt:1, desc:'Nuke a node\'s RAM (risky)',
+   effect:()=>{ GS.questFlags.has_forkbomb=true; tprint('ForkBomb.exe installed. Use carefully.','twrn'); }},
+  {id:'neon-theme',      name:'Theme: Neon Bleed',cost:200, wt:0, desc:'Unlock neon theme',
+   effect:()=>{ unlockTheme('neon'); }},
+  {id:'ice-theme',       name:'Theme: Ice Shell', cost:200, wt:0, desc:'Unlock ice theme',
+   effect:()=>{ unlockTheme('ice'); }},
+];
+
+const FACTION_STORES = {
+  wraith:[
+    {id:'ghost-trace',   name:'Ghost Trace',    cost:200,wt:1, desc:'Notoriety -10. Scrambles your signature.',
+     effect:()=>{ GS.notoriety=Math.max(0,GS.notoriety-10); tprint('Ghost Trace active. Notoriety -10.','tok'); }},
+    {id:'ram-shunt',     name:'RAM Shunt',       cost:150,wt:2, desc:'+2G RAM, runs hot (+10°F idle)',
+     effect:()=>{ RIG.ramTotal+=2; RIG.weightUsed+=2; GS.tempF+=10; tprint('RAM Shunt: +2G RAM. It runs hot.','twrn'); }},
+    {id:'burst-shell',   name:'Burst Shell',     cost:300,wt:2, desc:'Next crack attempt ignores 1 firewall layer',
+     effect:()=>{ GS.questFlags.burst_ready=true; tprint('Burst Shell ready. Next crack: -1 firewall layer.','tok'); }},
+    {id:'wraith-theme',  name:'Theme: Wraith Void',cost:0,wt:0, desc:'Wraith faction theme (free for members)',
+     effect:()=>{ unlockTheme('wraith'); applyTheme('wraith'); }},
+  ],
+  bastion:[
+    {id:'iron-wall',     name:'Iron Wall',       cost:250,wt:3, desc:'+2 firewall layers on YOUR node',
+     effect:()=>{ tprint('Iron Wall: your localhost now has 2 extra firewall layers.','tok'); }},
+    {id:'deep-cool',     name:'Deep Cooler',     cost:180,wt:3, desc:'Cooling dissipation +30%',
+     effect:()=>{ RIG.cooling.dissipation+=0.3; RIG.weightUsed+=3; tprint('Deep Cooler: dissipation +30%.','tok'); }},
+    {id:'bastion-ram',   name:'Fortress RAM',    cost:350,wt:4, desc:'+8G RAM, slow but stable',
+     effect:()=>{ RIG.ramTotal+=8; RIG.weightUsed+=4; tprint('Fortress RAM: +8G.','tok'); }},
+    {id:'bastion-theme', name:'Theme: Bastion Fortress',cost:0,wt:0, desc:'Bastion faction theme (free for members)',
+     effect:()=>{ unlockTheme('bastion'); applyTheme('bastion'); }},
+  ],
+  broker:[
+    {id:'market-tap',    name:'Market Tap',      cost:100,wt:1, desc:'All store prices visible and -10%',
+     effect:()=>{ GS.questFlags.market_tap=true; tprint('Market Tap: -10% all prices.','tok'); }},
+    {id:'rep-wash',      name:'Rep Wash',         cost:200,wt:1, desc:'Notoriety -50',
+     effect:()=>{ GS.notoriety=Math.max(0,GS.notoriety-50); tprint('Rep Wash: notoriety -50.','tok'); }},
+    {id:'intel-drone',   name:'Intel Drone',      cost:300,wt:2, desc:'Auto-discovers all adjacent nodes for 60s',
+     effect:()=>{ startIntelDrone(); }},
+    {id:'broker-theme',  name:'Theme: Broker Gold',cost:0,wt:0, desc:'Broker faction theme (free for members)',
+     effect:()=>{ unlockTheme('broker'); applyTheme('broker'); }},
+  ],
+  phantom:[
+    {id:'phantom-cloak', name:'Phantom Cloak',   cost:400,wt:2, desc:'Complete trace immunity for 120s',
+     effect:()=>{ GS.questFlags.phantom_cloak=true; tprint('Phantom Cloak: 120s trace immunity on next use.','tok'); }},
+    {id:'zero-day',      name:'Zero-Day Kit',     cost:500,wt:2, desc:'Cracks any single port instantly',
+     effect:()=>{ GS.questFlags.zero_day=1; tprint('Zero-Day Kit ready. One port, any type, instant crack.','tok'); }},
+    {id:'phantom-theme', name:'Theme: Phantom Circuit',cost:0,wt:0, desc:'PHANTOM operative skin',
+     effect:()=>{ unlockTheme('phantom'); applyTheme('phantom'); }},
+  ],
+  archon:[
+    {id:'archon-shield', name:'Archon Shield',    cost:400,wt:2, desc:'+2 on all firewall defenses and trace immunity buff',
+     effect:()=>{ tprint('Archon Shield: your defensive profile hardened.','tok'); }},
+    {id:'gov-crack',     name:'Gov Cracker Suite',cost:500,wt:2, desc:'Can crack all standard ports in one command',
+     effect:()=>{ GS.questFlags.gov_crack=true; tprint('Gov Cracker Suite installed.','tok'); }},
+    {id:'archon-theme',  name:'Theme: Archon Division',cost:0,wt:0, desc:'ARCHON operative skin',
+     effect:()=>{ unlockTheme('archon'); applyTheme('archon'); }},
+  ],
+};
+
+// ── FACTIONS DATA ─────────────────────────────────────────────────────────────
+const FACTIONS_DATA = {
+  wraith:  {name:'WRAITH COLLECTIVE', tag:'Speed & Shadows',  color:'#cc88ff', theme:'wraith', storeKey:'wraith',
+    desc:'Fastest tools. Minimal footprint. Low RAM ceiling, high heat risk. Traces barely touch you.',
+    stats:'CPU boost +30% | Trace decay 2x | RAM cap: 20G | Overheat -20% threshold',
+    node:'10.11.0.99'},
+  bastion: {name:'BASTION ORDER',     tag:'Fortress & Patience', color:'#66ffaa', theme:'bastion', storeKey:'bastion',
+    desc:'Hardened decks. Layered firewalls. Slow, methodical, nearly impossible to trace once dug in.',
+    stats:'Firewall +2 | Cooling bonus | RAM cap: 64G | Ping penalty on all connections',
+    node:'10.44.0.1'},
+  broker:  {name:'THE BROKER SYNDICATE', tag:'Intel & Profit', color:'#ffdd44', theme:'broker', storeKey:'broker',
+    desc:'No combat edge. But intel, discounts, and the ability to play everyone. Power is knowing.',
+    stats:'Store -25% | Notoriety decay 2x | Intel drone access | Other factions distrust you',
+    node:'10.99.0.1'},
+};
+
+// ── CANVAS ────────────────────────────────────────────────────────────────────
+const canvas = document.getElementById('netCanvas');
+const ctx = canvas.getContext('2d');
+
+function resizeCanvas() {
+  const w = document.getElementById('cw');
+  canvas.width  = w.clientWidth  || 400;
+  canvas.height = w.clientHeight || 220;
+  drawNet();
+}
+
+function drawNet() {
+  const W=canvas.width, H=canvas.height;
+  ctx.clearRect(0,0,W,H);
+  const vis = GS.discovered;
+  // edges
+  ctx.setLineDash([3,6]);
+  vis.forEach(ip=>{
+    const n=NET[ip]; if(!n?.connections) return;
+    n.connections.forEach(t=>{
+      if(!vis.includes(t)) return;
+      const tn=NET[t]; if(!tn) return;
+      const hopEdge=GS.hops.includes(ip)&&GS.hops.includes(t);
+      ctx.strokeStyle=hopEdge?'rgba(255,170,0,.6)':'rgba(0,255,102,.12)';
+      ctx.lineWidth=hopEdge?1.5:1;
+      ctx.beginPath(); ctx.moveTo(n.x*W,n.y*H); ctx.lineTo(tn.x*W,tn.y*H); ctx.stroke();
+    });
+  });
+  ctx.setLineDash([]);
+  // nodes
+  vis.forEach(ip=>{
+    const n=NET[ip]; if(!n) return;
+    const nx=n.x*W, ny=n.y*H;
+    const isActive=ip===GS.host, isHop=GS.hops.includes(ip);
+    const hasAdmin=GS.adminOn.includes(ip), isLocked=n.firewallLayers>0 && !hasAdmin;
+    if(isActive){
+      ctx.save(); ctx.beginPath(); ctx.arc(nx,ny,13,0,Math.PI*2);
+      ctx.strokeStyle=getComputedStyle(document.body).getPropertyValue('--primary')||'#00ff66';
+      ctx.lineWidth=1.5; ctx.shadowColor=ctx.strokeStyle; ctx.shadowBlur=14; ctx.stroke(); ctx.restore();
+    }
+    if(isHop){ ctx.beginPath(); ctx.arc(nx,ny,10,0,Math.PI*2); ctx.strokeStyle='#ffaa00'; ctx.lineWidth=1; ctx.stroke(); }
+    ctx.beginPath(); ctx.arc(nx,ny,isActive?6:4,0,Math.PI*2);
+    const fcolor = n.faction && FACTIONS_DATA[n.faction] ? FACTIONS_DATA[n.faction].color : null;
+    ctx.fillStyle = isActive ? '#00ff66' : hasAdmin ? '#ffaa00' : isHop ? '#ffaa00'
+                  : n.shadowGroup==='phantom' ? '#ff3366' : n.shadowGroup==='archon' ? '#22aaff'
+                  : fcolor || (isLocked ? '#ff2244' : '#6622cc');
+    ctx.fill();
+    ctx.textAlign='center'; ctx.font="9px 'Courier New'";
+    ctx.fillStyle=isActive?'#00ff66':'#444';
+    ctx.fillText(ip,nx,ny+17);
+    ctx.fillStyle=isActive?'#88ffaa':'#333';
+    ctx.fillText(n.name,nx,ny-12);
+  });
+}
+
+// ── TERMINAL OUTPUT ───────────────────────────────────────────────────────────
+const termOut=document.getElementById('term-out');
+function tprint(text,cls='tok'){
+  const d=document.createElement('div');
+  d.className=cls; d.textContent=text;
+  termOut.appendChild(d); termOut.scrollTop=termOut.scrollHeight;
+}
+function tsep(){tprint('─────────────────────────────────','tsys');}
+function tblank(){tprint('');}
+
+// ── SIDEBAR APPS ──────────────────────────────────────────────────────────────
+const APPS=['files','notes','mail','missions','factions','rig','themes'];
+function showApp(id){
+  APPS.forEach(a=>{
+    document.getElementById('app-'+a).classList.toggle('hide',a!==id);
+    document.querySelectorAll('.snb').forEach((b,i)=>b.classList.toggle('on',APPS[i]===id));
+  });
+  if(id==='files')    renderFiles();
+  if(id==='notes')    renderNotes();
+  if(id==='mail')     renderMail();
+  if(id==='missions') renderMissions();
+  if(id==='factions') renderFactions();
+  if(id==='rig')      renderRig();
+  if(id==='themes')   renderThemesPanel();
+}
+
+// FILES
+function renderFiles(){
+  const node=NET[GS.host], el=document.getElementById('files-out');
+  document.getElementById('fs-host').textContent=GS.host;
+  if(!node?.fs){ el.innerHTML='<span style="color:var(--dim)">(no filesystem)</span>'; return; }
+  el.innerHTML='';
+  Object.entries(node.fs).forEach(([path,f])=>{
+    if(f.content==='[rendered above]') return;
+    const row=document.createElement('div'); row.className='frow';
+    const fname=path.split('/').pop();
+    const isLocal=GS.host==='localhost';
+    const badges=(f.prot?'<span class="pill pr">LOCK</span>':'')
+      +(f.isTheme?'<span class="pill pp">THEME</span>':'')
+      +(f.encrypted?'<span class="pill py">ENC</span>':'')
+      +(f.vesselShard?'<span class="pill pg">SHARD</span>':'')
+      +(f.isLog?'<span class="pill" style="background:rgba(80,80,80,.2);color:#555;border:1px solid #333">LOG</span>':'');
+    const btns=`<div style="display:flex;gap:3px">
+      ${!isLocal&&!f.prot?`<button class="ubtn" onclick="stealFile('${path}')">Steal</button>`:''}
+      ${!isLocal&&!f.prot&&!f.isLog?`<button class="ubtn d" onclick="deleteFile('${path}')">Del</button>`:''}
+      ${f.isLog&&!isLocal?`<button class="ubtn d" onclick="deleteLogs('${path}')">Wipe</button>`:''}
+      <button class="ubtn a" onclick="processInput('cat ${fname}')">Read</button>
+    </div>`;
+    row.innerHTML=`<span class="fname">${fname}${badges}</span>${btns}`;
+    el.appendChild(row);
+  });
+}
+
+function stealFile(path){
+  const node=NET[GS.host]; if(!node) return;
+  const f=node.fs[path]; if(!f) return;
+  if(f.prot){ tprint('File protected. Crack first.','terr'); return; }
+  const fname=path.split('/').pop()+'.stolen';
+  NET.localhost.fs['/home/'+fname]={content:f.content,prot:false,stolen:true};
+  if(f.isTheme){ tprint(`Theme stolen: ${fname} — type: theme ${f.themeId}`,'twrn'); GS.stolenThemes.push(f.themeId); unlockTheme(f.themeId); }
+  if(f.vesselShard && !GS.vesselShards.includes(f.vesselShard)){ collectShard(f.vesselShard,path); }
+  if(f.questItem){ handleQuestItem(f.questItem); }
+  GS.notoriety+=4; GS.shadowThreshold+=3;
+  tprint(`Stolen: ${fname} → saved to localhost`,'tok');
+  // contract check sc8
+  if(node===NET['10.0.0.5']&&f.prot){ GS.questFlags['sc8_steal']=true; checkContractComplete('sc8'); }
+  renderFiles(); updateHUD();
+}
+
+function deleteFile(path){
+  const node=NET[GS.host]; if(!node) return;
+  const f=node.fs[path]; if(!f) return;
+  if(f.prot){ tprint('File protected.','terr'); return; }
+  delete node.fs[path];
+  if(f.questItem==='sc2_read') GS.questFlags['sc2_read']=true;
+  GS.notoriety+=2; GS.shadowThreshold+=2;
+  if(node.faction) { GS.factionRep[node.faction]=(GS.factionRep[node.faction]||0)-5; }
+  tprint(`Deleted: ${path.split('/').pop()}`,'tok');
+  // check sc3
+  if(!Object.keys(node.fs).some(k=>k.includes('/log'))) checkContractComplete('sc3');
+  renderFiles(); checkQuestProgress();
+}
+
+function deleteLogs(path){
+  const node=NET[GS.host]; if(!node) return;
+  // delete all logs on this node
+  Object.keys(node.fs).filter(k=>k.includes('/log')||k.endsWith('.log')).forEach(k=>{
+    delete node.fs[k];
+  });
+  tprint('Logs wiped on '+GS.host,'tok');
+  checkContractComplete('sc3');
+  renderFiles();
+}
+
+// NOTES
+function renderNotes(){
+  const el=document.getElementById('notes-out');
+  if(!GS.notes.length){ el.innerHTML='<span style="color:var(--dim)">(no notes)</span>'; return; }
+  el.innerHTML=GS.notes.map((n,i)=>`<div class="frow"><span class="fname">[${i+1}] ${n}</span><button class="ubtn d" onclick="deleteNote(${i})">del</button></div>`).join('');
+}
+function newNote(){ const t=prompt('New note:'); if(t?.trim()){ GS.notes.push(t.trim()); renderNotes(); tprint('Note saved.','tsys'); } }
+function deleteNote(i){ GS.notes.splice(i,1); renderNotes(); }
+
+// MAIL
+function renderMail(){
+  const el=document.getElementById('mail-out');
+  const unread=MAILBOX.filter(m=>!m.read).length;
+  document.getElementById('mail-count').textContent=unread>0?`${unread} unread`:'';
+  el.innerHTML=MAILBOX.map((m,i)=>`
+    <div style="border-bottom:1px solid var(--dim);padding:5px 0;cursor:pointer;opacity:${m.read?.7:1}" onclick="readMail(${i})">
+      <div style="color:var(--warn);font-size:10px">${m.from}</div>
+      <div style="font-size:12px;color:${m.read?'var(--dim)':'var(--text)'}">${m.read?'':'● '}${m.subj}</div>
+    </div>`).join('');
+}
+function readMail(i){
+  const m=MAILBOX[i]; m.read=true;
+  tsep(); tprint(`FROM: ${m.from}`,'twrn'); tprint(`SUBJ: ${m.subj}`,'tinf'); tblank();
+  tprint(m.body,'tok'); tsep();
+  if(m.questItem) handleQuestItem(m.questItem);
+  renderMail();
+}
+function deliverMail(from,subj,body,questItem){
+  MAILBOX.push({id:'mail_'+Date.now(),from,subj,body,read:false,questItem});
+  const snb=document.querySelector('[onclick="showApp(\'mail\')"]');
+  if(snb) snb.textContent='Mail ●';
+  renderMail();
+  tprint(`[NEW MAIL] From: ${from} — ${subj}`,'twrn');
+}
+
+// MISSIONS
+function renderMissions(){
+  const el=document.getElementById('missions-out');
+  let html='';
+  if(activeQuestLog.length){
+    html+='<div style="color:var(--accent);font-size:10px;margin-bottom:5px;text-transform:uppercase">ACTIVE</div>';
+    activeQuestLog.forEach(id=>{
+      const q=QUESTS[id]; if(!q) return;
+      const done=q.complete();
+      html+=`<div class="mission-card ${done?'':'active'}">
+        <div style="color:${done?'var(--dim)':'var(--primary)'};font-size:11px;font-weight:bold">${q.name}${done?' ✓':''}</div>
+        <div style="color:var(--dim);font-size:10px;margin-top:2px">Act ${q.act} ${q.main?'[MAIN]':'[SIDE]'}</div>
+        <div style="color:var(--text);font-size:11px;margin-top:3px">${q.desc}</div>
+        ${q.reward.cr?`<div style="color:var(--warn);font-size:10px;margin-top:2px">Reward: ${q.reward.cr}cr${q.reward.theme?' + theme: '+q.reward.theme:''}</div>`:''}
+      </div>`;
+    });
+  }
+  if(completedQuests.length){
+    html+=`<div style="color:#444;font-size:10px;margin-top:8px;text-transform:uppercase">COMPLETED (${completedQuests.length})</div>`;
+    completedQuests.forEach(id=>{
+      const q=QUESTS[id]; if(!q) return;
+      html+=`<div style="padding:3px 0;border-bottom:1px solid var(--dim);color:#444;font-size:11px">✓ ${q.name}</div>`;
+    });
+  }
+  // active contracts
+  const claimed=Object.keys(GS.activeContracts);
+  if(claimed.length){
+    html+=`<div style="color:var(--warn);font-size:10px;margin-top:8px;text-transform:uppercase">IRC CONTRACTS</div>`;
+    claimed.forEach(id=>{
+      const c=SIDE_CONTRACTS.find(s=>s.id===id); if(!c) return;
+      const ac=GS.activeContracts[id];
+      const remaining=Math.max(0,Math.round((ac.deadline-Date.now())/1000));
+      html+=`<div class="mission-card active">
+        <div style="color:var(--warn);font-size:11px;font-weight:bold">${c.title} — ${c.cr}cr</div>
+        <div style="color:var(--dim);font-size:10px">Posted by ${c.poster}</div>
+        <div style="color:var(--text);font-size:11px;margin-top:2px">${c.desc}</div>
+        <div style="color:${remaining<60?'var(--alert)':'var(--dim)'};font-size:10px">Time: ${remaining}s</div>
+      </div>`;
+    });
+  }
+  el.innerHTML=html||'<span style="color:var(--dim)">No active missions.</span>';
+}
+
+// FACTIONS
+function renderFactions(){
+  const el=document.getElementById('factions-out');
+  let html='';
+  Object.entries(FACTIONS_DATA).forEach(([id,f])=>{
+    const joined=GS.faction===id;
+    const rep=GS.factionRep[id]||0;
+    html+=`<div class="faction-card ${joined?'joined':''}" style="${joined?'border-color:'+f.color:''}">
+      <div style="color:${f.color};font-weight:bold">${f.name}</div>
+      <div style="color:var(--dim);font-size:10px">${f.tag}</div>
+      <div style="color:var(--text);font-size:11px;margin:4px 0">${f.desc}</div>
+      <div style="color:var(--warn);font-size:10px">${f.stats}</div>
+      <div style="margin-top:5px;display:flex;gap:6px;align-items:center">
+        <span class="${joined?'pill pg':'pill py'}">${joined?'JOINED':'Rep: '+rep}</span>
+        ${!joined?`<button class="ubtn a" onclick="processInput('join ${id}')">Join</button>`:'<span style="color:var(--primary);font-size:10px">ACTIVE FACTION</span>'}
+      </div>
+    </div>`;
+  });
+  // shadow groups
+  const showPhantom = GS.shadowInvites.phantom || GS.shadowChoice==='phantom';
+  const showArchon  = GS.shadowInvites.archon  || GS.shadowChoice==='archon';
+  if(showPhantom||showArchon){
+    html+='<div style="color:var(--alert);font-size:10px;margin-top:8px;text-transform:uppercase">SHADOW GROUPS</div>';
+    if(showPhantom) html+=`<div class="faction-card ${GS.shadowChoice==='phantom'?'joined':''}" style="${GS.shadowChoice==='phantom'?'border-color:#ff3366':''}">
+      <div style="color:#ff3366;font-weight:bold">PHANTOM CIRCUIT</div>
+      <div style="color:var(--dim);font-size:10px">Black hat collective. No law.</div>
+      ${GS.shadowChoice==='phantom'?'<span class="pill pr">ALIGNED</span>':GS.shadowChoice?'<span class="pill" style="background:none;color:#333;border:1px solid #333">DECLINED</span>':`<button class="ubtn d" onclick="processInput('align phantom')">Align</button>`}
+    </div>`;
+    if(showArchon) html+=`<div class="faction-card ${GS.shadowChoice==='archon'?'joined':''}" style="${GS.shadowChoice==='archon'?'border-color:#22aaff':''}">
+      <div style="color:#22aaff;font-weight:bold">ARCHON DIVISION</div>
+      <div style="color:var(--dim);font-size:10px">Government black site. Classified.</div>
+      ${GS.shadowChoice==='archon'?'<span class="pill pp">ALIGNED</span>':GS.shadowChoice?'<span class="pill" style="background:none;color:#333;border:1px solid #333">DECLINED</span>':`<button class="ubtn a" onclick="processInput('align archon')">Align</button>`}
+    </div>`;
+  }
+  el.innerHTML=html;
+}
+
+// RIG
+function renderRig(){
+  const el=document.getElementById('rig-out');
+  const freeRam=(RIG.ramTotal-GS.ramUsed-procsRam()).toFixed(1);
+  el.innerHTML=`
+    <div style="color:var(--accent);font-size:10px;margin-bottom:5px">HARDWARE</div>
+    <div class="frow"><span>RAM</span><span>${GS.ramUsed.toFixed(1)}G used / ${RIG.ramTotal}G total (${freeRam}G free)</span></div>
+    <div class="frow"><span>CPU</span><span>${RIG.cpuSpeed}GHz × ${RIG.cpuCores} cores</span></div>
+    <div class="frow"><span>Weight</span><span>${RIG.weightUsed} / ${RIG.weightCap} units</span></div>
+    <div class="frow"><span>Cooling</span><span>${RIG.cooling.dissipation.toFixed(2)}x ${RIG.cooling.broken?'<span class="pill pr">BROKEN</span>':RIG.cooling.stress>70?'<span class="pill py">STRESSED</span>':'<span class="pill pg">OK</span>'}</span></div>
+    <div style="color:var(--accent);font-size:10px;margin:8px 0 4px">INSTALLED TOOLS</div>
+    ${['sshcrack','ftpbounce','smtp','webworm','sql','decypher','forkbomb'].filter(t=>GS.questFlags['has_'+t]).map(t=>`<div class="frow"><span>${t}.exe</span><span class="pill pg">INSTALLED</span></div>`).join('')||'<div style="color:var(--dim);font-size:11px">No tools. Visit market at 172.20.0.1.</div>'}
+    <div style="color:var(--accent);font-size:10px;margin:8px 0 4px">ACTIVE HOPS (${GS.hops.length}/${GS.maxHops})</div>
+    ${GS.hops.length?GS.hops.map(h=>`<div class="frow"><span>${h}</span><button class="ubtn d" onclick="processInput('hop remove ${h}')">Remove</button></div>`).join(''):'<div style="color:var(--dim);font-size:11px">No hops active.</div>'}
+    <div style="color:var(--accent);font-size:10px;margin:8px 0 4px">VESSEL SHARDS (${GS.vesselShards.length}/7)</div>
+    ${Object.keys(VESSEL_SHARDS).map(s=>`<div class="frow"><span style="color:${GS.vesselShards.includes(s)?'var(--primary)':'var(--dim)'}">${s}</span><span>${GS.vesselShards.includes(s)?'<span class="pill pg">COLLECTED</span>':'<span class="pill" style="color:#333;border:1px solid #333;font-size:9px;padding:1px 4px">'+VESSEL_SHARDS[s].desc+'</span>'}</span></div>`).join('')}
+  `;
+}
+
+// THEMES PANEL
+function renderThemesPanel(){
+  const el=document.getElementById('themes-out');
+  el.innerHTML=Object.entries(THEMES).map(([id,t])=>`
+    <div style="border-bottom:1px solid var(--dim);padding:5px 0;display:flex;justify-content:space-between;align-items:center">
+      <div>
+        <div style="font-size:11px;color:${t.locked&&!GS.stolenThemes.includes(id)?'var(--dim)':'var(--primary)'}">${t.name}</div>
+        <div style="font-size:10px;color:#444">${t.desc}</div>
+      </div>
+      ${t.locked&&!GS.stolenThemes.includes(id)?'<span class="pill pr">LOCKED</span>'
+        :`<button class="ubtn" onclick="applyTheme('${id}')">${GS.currentTheme===id?'ACTIVE':'Apply'}</button>`}
+    </div>`).join('');
+}
+
+// ── THEME ENGINE ──────────────────────────────────────────────────────────────
+function unlockTheme(id){
+  if(!GS.stolenThemes.includes(id)) GS.stolenThemes.push(id);
+  THEMES[id].locked=false;
+  tprint(`Theme unlocked: ${THEMES[id].name}`,'tinf');
+}
+function applyTheme(id){
+  const t=THEMES[id];
+  if(!t){ tprint('Unknown theme.','terr'); return; }
+  if(t.locked && !GS.stolenThemes.includes(id)){ tprint('Theme locked. Steal or buy it first.','terr'); return; }
+  document.body.className=t.cls;
+  GS.currentTheme=id;
+  tprint(`Theme applied: ${t.name}`,'tinf');
+  if(document.getElementById('app-themes').classList.contains('hide')===false) renderThemesPanel();
+}
+
+// ── TRACE SYSTEM ──────────────────────────────────────────────────────────────
+let traceInterval=null;
+function startTrace(ip){
+  const node=NET[ip]; if(!node) return;
+  const baseSecs=node.traceSpeed||60;
+  const mult = GS.questFlags.trace_slow ? 0.7 : 1;
+  const hopBonus = GS.hops.length * 20;
+  const secs=Math.round((baseSecs+hopBonus)*mult);
+  GS.traceActive=true; GS.traceTarget=ip; GS.traceSecs=secs; GS.traceMax=secs;
+  const wrap=document.getElementById('trace-wrap');
+  wrap.classList.add('active');
+  updateTraceBars();
+  if(traceInterval) clearInterval(traceInterval);
+  traceInterval=setInterval(()=>{
+    if(!GS.traceActive){ clearInterval(traceInterval); return; }
+    if(GS.questFlags.phantom_cloak){ GS.questFlags.phantom_cloak=false; tprint('[PHANTOM CLOAK] Trace immunity used. Trace frozen.','twrn'); clearInterval(traceInterval); endTrace(false); return; }
+    GS.traceSecs--;
+    updateTraceBars();
+    if(GS.traceSecs<=10) tprint(`[TRACE] ${GS.traceSecs}s remaining — disconnect or wipe logs NOW`,'terr');
+    if(GS.traceSecs<=0){ clearInterval(traceInterval); traceComplete(); }
+  },1000);
+}
+function updateTraceBars(){
+  const pct=(1-(GS.traceSecs/GS.traceMax))*100;
+  document.getElementById('trace-fill').style.width=pct+'%';
+  document.getElementById('trace-time').textContent=GS.traceSecs+'s remaining';
+}
+function endTrace(caught){
+  GS.traceActive=false;
+  document.getElementById('trace-wrap').classList.remove('active');
+  if(traceInterval){ clearInterval(traceInterval); traceInterval=null; }
+  if(caught) traceComplete();
+}
+function traceComplete(){
+  tprint('','tsys');
+  tprint('╔══════════════════════════════════════╗','terr');
+  tprint('║  TRACE COMPLETE — YOU HAVE BEEN      ║','terr');
+  tprint('║  IDENTIFIED. FORCED DISCONNECT.       ║','terr');
+  tprint('╚══════════════════════════════════════╝','terr');
+  GS.notoriety+=20; GS.shadowThreshold+=15;
+  // Force disconnect
+  doDisconnect();
+  // Drain wallet
+  const penalty=Math.min(GS.wallet,Math.round(GS.wallet*.15));
+  GS.wallet-=penalty;
+  tprint(`Trace bounty: -${penalty}cr. Notoriety +20.`,'terr');
+  updateHUD();
+}
+
+// ── PORT CRACKING ─────────────────────────────────────────────────────────────
+const PORT_TOOLS = {
+  22:   {cmd:'sshcrack',    name:'SSHcrack',   flag:'has_sshcrack', ram:0.2, cpu:8,  secs:8  },
+  21:   {cmd:'ftpbounce',   name:'FTPBounce',  flag:'has_ftpbounce',ram:0.4, cpu:4,  secs:15 },
+  25:   {cmd:'smtpoverflow',name:'SMTPoverflow',flag:'has_smtp',    ram:0.3, cpu:10, secs:10 },
+  80:   {cmd:'webworm',     name:'WebWorm',    flag:'has_webworm',  ram:0.3, cpu:12, secs:10 },
+  1433: {cmd:'sqlbleed',    name:'SQLbleed',   flag:'has_sql',      ram:0.5, cpu:18, secs:18 },
+};
+const PORT_ALIASES = {
+  sshcrack:22, ftpbounce:21, smtpoverflow:25, webworm:80, sqlbleed:1433
+};
+
+function crackPort(cmdName, port){
+  const ip=GS.host; const node=NET[ip]; if(!node){ tprint('Not connected to a node.','terr'); return; }
+  if(port===undefined) port=PORT_ALIASES[cmdName];
+  if(!port){ tprint(`Unknown tool: ${cmdName}`,'terr'); return; }
+  const tool=PORT_TOOLS[port]; if(!tool){ tprint('No tool for port '+port,'terr'); return; }
+  if(!GS.questFlags[tool.flag]){ tprint(`${tool.name} not installed. Buy it at the market.`,'terr'); return; }
+  if(!node.ports||!node.ports[port]){ tprint(`Port ${port} not found on ${ip}.`,'terr'); return; }
+  if(node.ports[port].cracked){ tprint(`Port ${port} already open.`,'twrn'); return; }
+  // Zero day override
+  if(GS.questFlags.zero_day && GS.questFlags.zero_day > 0){ GS.questFlags.zero_day--; node.ports[port].cracked=true; tprint(`[ZERO-DAY] Port ${port} cracked instantly.`,'thack'); renderFiles(); return; }
+  // Gov crack
+  if(GS.questFlags.gov_crack){ node.ports[port].cracked=true; tprint(`[GOV CRACK] Port ${port} (${tool.name}) cracked.`,'thack'); renderFiles(); return; }
+  // RAM check
+  if(procsRam()+tool.ram > RIG.ramTotal-GS.ramUsed){ tprint('Insufficient RAM for this tool.','terr'); return; }
+  tprint(`Running ${tool.name} on port ${port}...`,'twrn');
+  const proc=spawnProc(tool.name, tool.ram, tool.cpu, ip);
+  GS.shadowThreshold++;
+  setTimeout(()=>{
+    killProc(proc.pid);
+    node.ports[port].cracked=true;
+    GS.openPorts[ip]=GS.openPorts[ip]||[];
+    if(!GS.openPorts[ip].includes(port)) GS.openPorts[ip].push(port);
+    tprint(`Port ${port} (${node.ports[port].type}) opened on ${ip}.`,'thack');
+    checkPortProgress(ip);
+  }, tool.secs*1000);
+}
+
+function checkPortProgress(ip){
+  const node=NET[ip]; if(!node) return;
+  const total=Object.keys(node.ports||{}).length;
+  const cracked=Object.values(node.ports||{}).filter(p=>p.cracked).length;
+  tprint(`Open ports: ${cracked}/${total} — ${total-cracked} remaining until PortHack viable.`,'tinf');
+}
+
+function portHack(ip){
+  ip=ip||GS.host; const node=NET[ip]; if(!node){ tprint('Not connected.','terr'); return; }
+  if(ip==='localhost'){ tprint('Cannot PortHack your own machine.','terr'); return; }
+  const ports=node.ports||{};
+  const total=Object.keys(ports).length;
+  const cracked=Object.values(ports).filter(p=>p.cracked).length;
+  const needed=Math.max(1,Math.ceil(total/2));
+  if(cracked<needed){ tprint(`PortHack requires ${needed} open ports. Currently ${cracked}/${total}.`,'terr'); return; }
+  if(node.firewallLayers>0){
+    const layers=node.firewallLayers-(GS.questFlags.burst_ready?1:0);
+    if(GS.questFlags.burst_ready) GS.questFlags.burst_ready=false;
+    if(layers>0){ tprint(`Firewall active: ${layers} layer(s). Cannot PortHack yet. Use crack command.`,'terr'); return; }
+  }
+  tprint(`PortHack executing on ${ip}...`,'thack');
+  GS.shadowThreshold+=5; GS.notoriety+=3;
+  startTrace(ip);
+  const proc=spawnProc('PortHack',1.0,25,ip);
+  setTimeout(()=>{
+    killProc(proc.pid);
+    if(!GS.adminOn.includes(ip)) GS.adminOn.push(ip);
+    node.adminAccess=true;
+    // Unprotect files
+    Object.values(node.fs||{}).forEach(f=>{ if(f.prot) f.prot=false; });
+    tprint(`Admin access gained on ${ip}.`,'thack');
+    tprint('All protected files unlocked. Don\'t forget to wipe logs.','twrn');
+    renderFiles(); drawNet(); updateHUD();
+    handleAdminGained(ip);
+    endTrace(false);
+  },3000);
+}
+
+function handleAdminGained(ip){
+  // Quest triggers
+  if(ip==='192.168.1.10'){
+    GS.questFlags.found_sandbox_password=true;
+    tprint('[QUEST] Into the Sandbox — complete.','tinf');
+  }
+  if(ip==='10.22.0.1') GS.questFlags.n0de_honeypot_admin=true;
+  if(ip==='10.0.0.5'){
+    GS.questFlags.kronos_breached=true;
+    GS.notoriety+=10; GS.shadowThreshold+=8;
+    tprint('[QUEST] KRONOS breached. Find /archive/shard_3.dat and /home/admin/vessel_project.enc','twrn');
+  }
+  if(ip==='10.77.0.1'){
+    GS.questFlags.axiom_node_found=true;
+    GS.discovered.push('10.00.0.1');
+    tprint('[QUEST] Ghost Protocol — AXIOM\'s node is open. Read everything.','twrn');
+    tprint('[MAP] New node discovered: 10.00.0.1 — AXIOM FINAL NODE','twrn');
+  }
+  if(ip==='10.33.0.1'||ip==='10.55.0.1'){
+    tprint('[QUEST] Shadow group node breached. Shards unlocked.','twrn');
+  }
+  checkQuestProgress();
+}
+
+// ── FORKBOMB ──────────────────────────────────────────────────────────────────
+function forkbomb(ip){
+  ip=ip||GS.host;
+  if(!GS.questFlags.has_forkbomb){ tprint('ForkBomb not installed.','terr'); return; }
+  if(ip==='localhost'){ tprint('Bombing your own machine is not recommended. Use: forkbomb [remote-ip]','terr'); return; }
+  const node=NET[ip]; if(!node){ tprint('Unknown node.','terr'); return; }
+  tprint(`ForkBomb deploying on ${ip}...`,'terr');
+  GS.notoriety+=15; GS.shadowThreshold+=10;
+  setTimeout(()=>{
+    // Crash node — temporarily remove from discovered
+    const idx=GS.discovered.indexOf(ip);
+    if(idx>=0) GS.discovered.splice(idx,1);
+    // Spike own temp
+    GS.tempF+=40;
+    tprint(`${ip} RAM overflowed. Node offline for 60s.`,'terr');
+    tprint('WARNING: ForkBomb heat spike on your rig. +40°F','terr');
+    drawNet();
+    setTimeout(()=>{
+      if(!GS.discovered.includes(ip)) GS.discovered.push(ip);
+      drawNet();
+      tprint(`${ip} recovered and back online.`,'twrn');
+    },60000);
+  },2000);
+}
+
+// ── DECYPHER ──────────────────────────────────────────────────────────────────
+function decypher(filename, password){
+  if(!GS.questFlags.has_decypher){ tprint('Decypher.exe not installed. Buy it at the market.','terr'); return; }
+  const node=NET[GS.host]; if(!node) return;
+  const path=Object.keys(node.fs).find(k=>k.endsWith('/'+filename)||k.endsWith(filename));
+  if(!path){ tprint('File not found: '+filename,'terr'); return; }
+  const f=node.fs[path];
+  if(!f.encrypted){ tprint('File is not encrypted.','twrn'); return; }
+  if(f.password && f.password!==password){ tprint('Wrong password. Decryption failed.','terr'); return; }
+  tsep();
+  tprint(`[DECYPHERED] ${filename}`,'thack');
+  tprint(f.decrypted,'tok');
+  tsep();
+  if(f.questItem) handleQuestItem(f.questItem);
+  if(f.vesselShard&&!GS.vesselShards.includes(f.vesselShard)) collectShard(f.vesselShard,path);
+}
+
+// ── VESSEL SHARDS ─────────────────────────────────────────────────────────────
+function collectShard(shardId, path){
+  if(GS.vesselShards.includes(shardId)) return;
+  GS.vesselShards.push(shardId);
+  tprint(`[VESSEL] Shard collected: ${shardId} (${GS.vesselShards.length}/7)`,'thack');
+  checkVesselProgress();
+  checkQuestProgress();
+}
+
+function checkVesselProgress(){
+  if(GS.vesselShards.length>=4 && GS.act<3){
+    advanceAct(3);
+  }
+  if(GS.vesselShards.length===7){
+    tprint('[VESSEL] ALL 7 SHARDS COLLECTED. AXIOM\'s final node is accessible.','thack');
+    GS.questFlags.all_shards=true;
+    NET['10.00.0.1'].firewallLayers=0; // unlocks for PortHack
+    checkQuestProgress();
+  }
+}
+
+// ── QUEST SYSTEM ──────────────────────────────────────────────────────────────
+function handleQuestItem(flag){
+  GS.questFlags[flag]=true;
+  // Specific triggers
+  if(flag==='act1_start'){
+    tprint('[QUEST] Check your mail.','tinf');
+    GS.questFlags.read_who_was_bit=true;
+    checkQuestProgress();
+  }
+  if(flag==='act1_n0de'){
+    GS.questFlags.n0de_contact=true;
+    // Reveal honeypot
+    if(!GS.discovered.includes('10.22.0.1')) GS.discovered.push('10.22.0.1');
+    drawNet();
+  }
+  if(flag==='act1_honeypot_pass'){
+    GS.questFlags.n0de_pass=true;
+    deliverMail('recruiter@n0de.net','Welcome to N0DE',
+      'You passed.\nWelcome to N0DE, runner.\n\nV has more for you. Check the file you found.\nThe network is bigger than you think.\nStart looking at 10.0.0.5 — KRONOS runs their gateway there.\n\nYour notoriety is climbing. Two groups are paying attention.\nWe don\'t know who they are yet.\n\nStay sharp.\n\n— N0DE','act2_start');
+    if(!activeQuestLog.includes('q2_kronos')) activeQuestLog.push('q2_kronos','q2_shard1','q2_shard2','q2_shard3','q2_wraith','q2_broker');
+    checkQuestProgress();
+  }
+  if(flag==='act2_vessel_doc'){
+    GS.questFlags.kronos_vessel_doc=true;
+    tprint('[QUEST] VESSEL project document found. Check Rig tab.','tinf');
+    checkQuestProgress();
+  }
+  if(flag==='act2_wraith_lore') GS.questFlags.wraith_lore=true;
+  if(flag==='act2_start') advanceAct(2);
+  if(flag==='act3_axiom_letter') GS.questFlags.broker_axiom=true;
+  if(flag==='act3_axiom_node'){
+    GS.questFlags.axiom_node_found=true;
+    deliverMail('axiom@void.net','I know you\'re looking',
+      'I see you found my node.\nGood. That means the failsafe recognizes you.\n\nFour fragments remain:\n— PHANTOM CIRCUIT has #4\n— ARCHON DIVISION has #5\n— You already have #6 if you looked around\n— I have #7\n\nTwo groups are watching you. You\'ve hit their threshold.\nThey\'ll make contact soon.\nCheck #deepnet in IRC.\n\nBefore you choose sides — think.\nNeither one of them will tell you the whole truth.\n\n— AX','act4_axiom_contact');
+    advanceAct(3);
+  }
+  if(flag==='act4_axiom_contact') advanceAct(4);
+  if(flag==='act4_phantom_invite') GS.shadowInvites.phantom=true;
+  if(flag==='act4_archon_invite')  GS.shadowInvites.archon=true;
+  if(flag==='sc2_read'){ GS.questFlags['sc2_read']=true; checkContractComplete('sc2'); }
+  checkQuestProgress();
+}
+
+function checkQuestProgress(){
+  activeQuestLog.forEach(id=>{
+    const q=QUESTS[id]; if(!q||completedQuests.includes(id)) return;
+    if(q.complete()){
+      completedQuests.push(id);
+      activeQuestLog=activeQuestLog.filter(x=>x!==id);
+      tprint(`[QUEST COMPLETE] ${q.name}${q.reward.cr?` (+${q.reward.cr}cr)`:''}`, 'tinf');
+      if(q.reward.cr){ GS.wallet+=q.reward.cr; }
+      if(q.reward.theme){ unlockTheme(q.reward.theme); }
+      updateHUD();
+    }
+  });
+  renderMissions();
+}
+
+function advanceAct(n){
+  if(GS.act>=n) return;
+  GS.act=n;
+  tprint(`[STORY] ACT ${n} BEGINS`,'thack');
+  if(n===2){
+    // Reveal more nodes
+    ['10.11.0.99','10.99.0.1','10.44.0.1'].forEach(ip=>{ if(!GS.discovered.includes(ip)) GS.discovered.push(ip); });
+    drawNet();
+  }
+  if(n===3){
+    // Reveal AXIOM node
+    if(!GS.discovered.includes('10.77.0.1')) GS.discovered.push('10.77.0.1');
+    if(!activeQuestLog.includes('q3_axiom_node')) activeQuestLog.push('q3_axiom_node','q3_shard6','q3_shadow');
+    drawNet();
+  }
+  if(n===4){
+    // Trigger shadow groups
+    if(!GS.discovered.includes('10.33.0.1')) GS.discovered.push('10.33.0.1');
+    if(!GS.discovered.includes('10.55.0.1')) GS.discovered.push('10.55.0.1');
+    if(!activeQuestLog.includes('q4_choose')) activeQuestLog.push('q4_choose','q4_shards_45','q4_axiom_final');
+    triggerDeepnet();
+    drawNet();
+    deliverMail('unknown@phantom.circuit','An Invitation',
+      'We don\'t do this for just anyone.\n\nPHANTOM CIRCUIT.\nLook us up: 10.33.0.1\nDecrypt what you find there.\nPassword: WE_FOUND_YOU\n\nThen we\'ll talk.\n\n— PHANTOM','act4_phantom_invite');
+    setTimeout(()=>{
+      deliverMail('handler_k@archon.gov','CLASSIFIED — Candidate Contact',
+        'CLASSIFICATION: ABOVE TOP SECRET\n\nRunner.\nWe have been monitoring your activity.\nYou have been identified as a candidate.\n\nFind us at 10.55.0.1\nDecrypt with: CLEARANCE_GAMMA\n\nWe will explain everything.\n\n— Handler K, ARCHON DIVISION','act4_archon_invite');
+    },15000);
+  }
+}
+
+// ── SHADOW ALIGNMENT ─────────────────────────────────────────────────────────
+function alignTo(group){
+  if(GS.shadowChoice){ tprint('You\'ve already made your choice.','terr'); return; }
+  if(group!=='phantom'&&group!=='archon'&&group!=='neither'){ tprint('Usage: align [phantom|archon|neither]','twrn'); return; }
+  GS.shadowChoice=group;
+  if(group==='phantom'){
+    tprint('[PHANTOM] Alignment confirmed. You are PHANTOM.','terr');
+    unlockTheme('phantom'); applyTheme('phantom');
+    GS.factionRep.phantom=100;
+    // Unlock PHANTOM store
+    NET['10.33.0.1'].store='phantom'; NET['10.33.0.1'].factionRequired='phantom'; NET['10.33.0.1'].firewallLayers=0;
+    // Give shard 4 hint
+    tprint('[PHANTOM] Shard #4 is now accessible on our node. Shard #5 must be taken from ARCHON by force.','twrn');
+    ircMsg('deepnet','PHANTOM','Welcome. Shard #4 is yours. Take #5 from ARCHON — they won\'t give it up.','im-hot');
+    renderFactions();
+    deliverMail('phantom@circuit.net','Welcome — Final Briefing',
+      'You chose correctly.\n\nShard #4 is unlocked on our node — /data/shard_4.dat\nShard #5 is with ARCHON. You\'ll have to crack their mainframe.\n\nWhen you have all 7, find AXIOM.\nRelease VESSEL. Burn KRONOS. Let the net breathe.\n\nWe\'ll support your final run.\n\n— PHANTOM','phantom_briefing');
+  }
+  else if(group==='archon'){
+    tprint('[ARCHON] Alignment confirmed. You are an ARCHON operative.','tinf');
+    unlockTheme('archon'); applyTheme('archon');
+    GS.factionRep.archon=100;
+    NET['10.55.0.1'].store='archon'; NET['10.55.0.1'].factionRequired='archon'; NET['10.55.0.1'].firewallLayers=0;
+    tprint('[ARCHON] Shard #5 accessible on our node. Shard #4 must be retrieved from PHANTOM.','twrn');
+    ircMsg('deepnet','ARCHON','Clearance granted. Shard #5 is yours. PHANTOM holds #4. Extract it.','im-warn');
+    renderFactions();
+    deliverMail('handler_k@archon.gov','Operative Briefing — EYES ONLY',
+      'Welcome to ARCHON.\n\nShard #5 is unlocked on our node — /data/shard_5.dat\nShard #4 is with PHANTOM at 10.33.0.1.\nCrack their node and retrieve it.\n\nWhen you have all 7, find AXIOM.\nContain VESSEL. We\'ll make sure it\'s used responsibly.\n\nThis is the most important operation of your career.\n\n— Handler K','archon_briefing');
+  }
+  else{
+    tprint('[WARNING] You chose neither. Both groups now consider you a threat.','terr');
+    tprint('Brace for impact.','terr');
+    ircMsg('deepnet','PHANTOM','Mistake.','im-hot');
+    ircMsg('deepnet','ARCHON','Unfortunate.','im-warn');
+    setTimeout(()=>{ neitherConsequence(); },8000);
+  }
+  checkQuestProgress();
+}
+
+function neitherConsequence(){
+  tprint('','tsys');
+  tprint('╔══════════════════════════════════════════════════════╗','terr');
+  tprint('║  INCOMING ATTACK — BOTH GROUPS TARGETING YOUR NODE  ║','terr');
+  tprint('╚══════════════════════════════════════════════════════╝','terr');
+  // Drain wallet, corrupt files, break cooling
+  const loss=Math.round(GS.wallet*0.4);
+  GS.wallet-=loss;
+  RIG.cooling.broken=true;
+  GS.ramUsed+=2;
+  // Corrupt some files
+  ['readme.txt','sys.log'].forEach(fname=>{
+    const path='/home/'+fname;
+    if(NET.localhost.fs[path]) NET.localhost.fs[path].content='[CORRUPTED BY PHANTOM/ARCHON JOINT STRIKE]';
+  });
+  tprint(`-${loss}cr wallet drained.`,'terr');
+  tprint('Cooling system destroyed by intrusion.','terr');
+  tprint('Local files corrupted.','terr');
+  tprint('Both groups will continue pursuing you. Hack fast. End this.','terr');
+  GS.notoriety+=50;
+  // Still need to find shards — give both shard 4 and 5 hints but make them hard
+  tprint('Shards 4 and 5 are still locked behind their respective nodes. You\'re on your own.','terr');
+  updateHUD(); renderFiles();
+}
+
+// ── VESSEL ENDING ─────────────────────────────────────────────────────────────
+function vesselCommand(action){
+  if(!GS.questFlags.all_shards){ tprint('You need all 7 shards first.','terr'); return; }
+  if(GS.host!=='10.00.0.1'){ tprint('Must be connected to AXIOM\'s final node.','terr'); return; }
+  GS.questFlags.vessel_assembled=true;
+  checkQuestProgress();
+  tsep();
+  if(action==='release'){
+    tprint('╔══════════════════════════════════════════════════════╗','thack');
+    tprint('║  VESSEL RELEASE PROTOCOL INITIATED                   ║','thack');
+    tprint('╚══════════════════════════════════════════════════════╝','thack');
+    tprint('','tsys');
+    tprint('VESSEL is compiling.','tinf');
+    tprint('Autonomous zero-day mapper deploying across all reachable networks.','tinf');
+    tprint('KRONOS Systems: 94 zero-days patched. Automated.','tok');
+    tprint('PHANTOM CIRCUIT infrastructure: neutralized by cascading patches.','tok');
+    tprint('ARCHON DIVISION classified ops: 34 backdoors closed.','tok');
+    tprint('','tsys');
+    tprint('VESSEL is free. Nobody owns it. Nobody can stop it.','thack');
+    tprint('Three power grids experience temporary outages during the cascade.','twrn');
+    tprint('AXIOM\'s final message plays. He sounds tired. He sounds relieved.','tinf');
+    tprint('','tsys');
+    tprint('ENDING: THE OPEN NET — VESSEL released. Free forever.','thack');
+    if(GS.faction) tprint(`${GS.faction.toUpperCase()} faction provides cover. You escape clean.`,'tok');
+  } else if(action==='destroy'){
+    tprint('╔══════════════════════════════════════════╗','twrn');
+    tprint('║  VESSEL DESTROY PROTOCOL INITIATED       ║','twrn');
+    tprint('╚══════════════════════════════════════════╝','twrn');
+    tprint('','tsys');
+    tprint('All 7 shards corrupted. VESSEL data purged.','twrn');
+    tprint('KRONOS loses their investment. Years of work: gone.','tok');
+    tprint('PHANTOM and ARCHON lose their asset simultaneously.','tok');
+    tprint('The net is no safer. But the weapon doesn\'t exist anymore.','twrn');
+    tprint('AXIOM\'s message plays. He sounds... okay with it.','tinf');
+    tprint('','tsys');
+    tprint('ENDING: THE SCORCHED EARTH — VESSEL destroyed. Nobody wins.','twrn');
+  } else if(action==='give phantom'){
+    tprint('╔════════════════════════════════════════════════╗','terr');
+    tprint('║  VESSEL TRANSFERRED — PHANTOM CIRCUIT          ║','terr');
+    tprint('╚════════════════════════════════════════════════╝','terr');
+    tprint('','tsys');
+    tprint('VESSEL core uploaded to PHANTOM\'s network.','terr');
+    tprint('72 hours later: power grid in three cities goes dark.','terr');
+    tprint('KRONOS destroyed. Dozens of other corps crippled.','terr');
+    tprint('PHANTOM is now the most dangerous group on the net.','terr');
+    tprint('AXIOM\'s message plays. He sounds like he\'s been crying.','tinf');
+    tprint('','tsys');
+    tprint('ENDING: THE CHAOS RUN — VESSEL weaponized. You gave it to them.','terr');
+  } else if(action==='give archon'){
+    tprint('╔════════════════════════════════════════════════╗','tinf');
+    tprint('║  VESSEL TRANSFERRED — ARCHON DIVISION          ║','tinf');
+    tprint('╚════════════════════════════════════════════════╝','tinf');
+    tprint('','tsys');
+    tprint('VESSEL core uploaded to ARCHON\'s classified mainframe.','tinf');
+    tprint('KRONOS destroyed. PHANTOM neutralized.','tok');
+    tprint('VESSEL now belongs to a government black site.','twrn');
+    tprint('Public zero-days go unpatched. ARCHON patches only what they choose.','twrn');
+    tprint('AXIOM\'s message plays. He sounds disappointed.','tinf');
+    tprint('','tsys');
+    tprint('ENDING: THE CONTROLLED BURN — VESSEL contained. At a cost.','tinf');
+  } else if(action==='kill switch'){
+    // Secret 4th ending — requires having read axiom_final.msg
+    if(!GS.questFlags['act4_axiom_contact']){ tprint('You don\'t know about the kill switch yet.','terr'); return; }
+    tprint('╔════════════════════════════════════════════════════════════╗','thack');
+    tprint('║  VESSEL KILL SWITCH + RELEASE PROTOCOL — AXIOM\'S INTENT   ║','thack');
+    tprint('╚════════════════════════════════════════════════════════════╝','thack');
+    tprint('','tsys');
+    tprint('VESSEL core released with embedded kill switch.','tinf');
+    tprint('Patches every zero-day it finds. Then deletes itself.','tinf');
+    tprint('One pass. Complete. Irreversible. Gone.','tok');
+    tprint('','tsys');
+    tprint('KRONOS, PHANTOM, ARCHON — all their backdoors closed simultaneously.','tok');
+    tprint('VESSEL patches itself out of existence.','tok');
+    tprint('Nobody owns the outcome. The net is briefly, perfectly clean.','thack');
+    tprint('','tsys');
+    tprint('AXIOM\'s message plays. He sounds like himself.','tinf');
+    tprint('"You figured it out. I knew you would. That\'s the whole point."','tinf');
+    tprint('','tsys');
+    tprint('ENDING: THE GHOST PROTOCOL — The only ending AXIOM wanted.','thack');
+    tprint('This is the true ending. Well played.','thack');
+    if(GS.newGamePlus) tprint('NG+: AXIOM says: "Again? Good. The net needs people like you."','tinf');
+  } else {
+    tprint('Usage: vessel [release|destroy|give phantom|give archon|kill switch]','twrn');
+    return;
+  }
+  // New Game+ flag
+  setTimeout(()=>{
+    tprint('','tsys'); tsep();
+    tprint('Game complete. Type: newgame+ to play again with carry-overs.','tinf');
+  },3000);
+}
+
+// ── CONTRACT SYSTEM ───────────────────────────────────────────────────────────
+function claimContract(id){
+  const c=SIDE_CONTRACTS.find(s=>s.id===id);
+  if(!c){ tprint('Contract not found: '+id,'terr'); return; }
+  if(GS.activeContracts[id]){ tprint('Already claimed.','twrn'); return; }
+  c.setup();
+  GS.activeContracts[id]={deadline:Date.now()+c.time*1000, completed:false};
+  tprint(`Contract claimed: ${c.title} — ${c.cr}cr — ${c.time}s to complete.`,'tok');
+  renderMissions();
+}
+
+function checkContractComplete(id){
+  const c=SIDE_CONTRACTS.find(s=>s.id===id);
+  if(!c||!GS.activeContracts[id]||GS.activeContracts[id].completed) return;
+  if(c.check()){
+    GS.activeContracts[id].completed=true;
+    GS.wallet+=c.cr;
+    tprint(`[CONTRACT COMPLETE] ${c.title} — +${c.cr}cr`,'tinf');
+    ircMsg('contracts', c.poster, `${c.poster}: Contract ${c.id} verified. Payment sent.`,'im-npc');
+    GS.shadowThreshold+=5;
+    renderMissions(); updateHUD();
+  }
+}
+
+// ── IRC ───────────────────────────────────────────────────────────────────────
+function switchChan(chan){
+  GS.currentChan=chan;
+  document.querySelectorAll('.chanb').forEach(b=>b.classList.toggle('on',b.textContent==='#'+chan));
+  document.querySelectorAll('.chanb').forEach(b=>{ if(b.textContent==='#'+chan) b.classList.remove('unread'); });
+  GS.chanUnread[chan]=0;
+  document.getElementById('irc-chan-label').textContent='#'+chan;
+  document.getElementById('irc-prompt').textContent=`you@#${chan}> `;
+  renderIrcChan(chan);
+}
+
+function renderIrcChan(chan){
+  const el=document.getElementById('irc-out');
+  const msgs=IRC_HISTORY[chan]||[];
+  el.innerHTML=msgs.map(m=>{
+    const col=m.user==='you'?'var(--primary)':NPC_COLORS[m.user]||'var(--accent)';
+    return `<div class="${m.cls||'im-npc'}"><span style="color:#444">[${m.ts}]</span> <span style="color:${col}">${m.user}</span>: ${m.text}</div>`;
+  }).join('');
+  el.scrollTop=el.scrollHeight;
+}
+
+function handleIrcInput(raw){
+  const txt=raw.trim(); if(!txt) return;
+  document.getElementById('irc-input').value='';
+  const chan=GS.currentChan;
+  if(txt.startsWith('/')){
+    const parts=txt.slice(1).split(' ');
+    const subcmd=parts[0].toLowerCase();
+    if(subcmd==='msg'){
+      const target=parts[1]?.toLowerCase();
+      const msg=parts.slice(2).join(' ');
+      if(target==='phantom'&&msg==='join') handleIrcJoinPhantom();
+      else if(target==='archon'&&msg==='join') handleIrcJoinArchon();
+      else ircMsg(chan,'---',`[PM → ${parts[1]}] ${msg}`,'im-sys');
+    } else if(subcmd==='claim'){
+      claimContract(parts[1]); ircMsg(chan,'you',txt,'im-you');
+    } else if(subcmd==='help'){
+      ircMsg(chan,'---','/msg [user] [text] — private message','im-sys');
+      ircMsg(chan,'---','/claim [id] — claim a contract from #contracts','im-sys');
+      ircMsg(chan,'---','/who — list users in channel','im-sys');
+    } else if(subcmd==='who'){
+      ircMsg(chan,'---','Users: d3f4ult c0el V4P0R anon_7 kr0nos_watch n0de_bot you','im-sys');
+    } else {
+      ircMsg(chan,'---','Unknown command. /help for list.','im-sys');
+    }
+  } else if(txt==='neither'){
+    ircMsg(chan,'you','neither','im-you');
+    alignTo('neither');
+  } else {
+    ircMsg(chan,'you',txt,'im-you');
+    // NPC responses
+    if(chan==='general' && Math.random()<0.4){
+      const npcs=['d3f4ult','c0el','anon_7'];
+      const npc=npcs[Math.floor(Math.random()*npcs.length)];
+      const responses=['noted','careful out there','watch the logs','...','ok','interesting'];
+      setTimeout(()=>ircMsg(chan,npc,responses[Math.floor(Math.random()*responses.length)],'im-npc'),1200+Math.random()*2000);
+    }
+  }
+}
+
+function handleIrcJoinPhantom(){
+  ircMsg('deepnet','PHANTOM','Smart. Aligning you now. Check your factions panel.','im-hot');
+  alignTo('phantom');
+}
+function handleIrcJoinArchon(){
+  ircMsg('deepnet','ARCHON','Clearance granted. Welcome to ARCHON. Check your factions panel.','im-warn');
+  alignTo('archon');
+}
+
+// IRC NPC timers
+function startIrcScripts(){
+  IRC_GENERAL_SCRIPT.forEach(([delay,user,text])=>{
+    setTimeout(()=>ircMsg('general',user,text,'im-npc'),delay);
+  });
+  IRC_TECH_SCRIPT.forEach(([delay,user,text])=>{
+    setTimeout(()=>ircMsg('tech',user,text,'im-npc'),delay);
+  });
+  IRC_CONTRACTS_SCRIPT.forEach(([delay,user,text])=>{
+    setTimeout(()=>ircMsg('contracts',user,text,'im-npc'),delay);
+  });
+  // Faction channel messages after joining
+  const factionCheck=setInterval(()=>{
+    if(GS.faction){
+      const f=FACTIONS_DATA[GS.faction]; if(!f) return;
+      document.getElementById('chan-faction').style.display='';
+      document.getElementById('chan-faction').textContent=`#${GS.faction}`;
+      clearInterval(factionCheck);
+      ircMsg('faction','faction-bot',`Welcome, runner. You are now ${f.name}.`,'im-npc');
+      setTimeout(()=>ircMsg('faction',GS.faction==='wraith'?'d3f4ult':GS.faction==='broker'?'V4P0R':'c0el',
+        `glad you made it. we have work for you.`,'im-npc'),5000);
+    }
+  },2000);
+}
+
+// ── HUD / RESOURCE LOOP ──────────────────────────────────────────────────────
+function updateHUD(){
+  const procR=procsRam(), procC=procsCpu();
+  GS.ramUsed=Math.min(0.5+procR+(Math.random()*.05), RIG.ramTotal);
+  GS.cpuLoad=Math.min(12+procC+(Math.random()-.4)*4, 100);
+  // Hop drain
+  GS.ramUsed+=GS.hops.length*0.3;
+  GS.cpuLoad+=GS.hops.length*5;
+  // Faction mods
+  if(GS.faction==='wraith'){GS.cpuLoad*=.85; }
+  if(GS.faction==='bastion'){GS.cpuLoad*=1.05;}
+  // Temp
+  const coolD=RIG.cooling.broken?.15:RIG.cooling.dissipation;
+  const tgt=98+(GS.cpuLoad*1.3);
+  GS.tempF+=(tgt-GS.tempF)*0.07*coolD;
+  GS.tempF=Math.max(98,Math.min(GS.tempF,230));
+  // Cooling stress
+  if(GS.tempF>165){ RIG.cooling.stress=Math.min(100,RIG.cooling.stress+.4);
+    if(RIG.cooling.stress>=100&&!RIG.cooling.broken){
+      RIG.cooling.broken=true; tprint('[CRITICAL] Cooling failure! Temperature uncontrolled.','terr');
+      document.getElementById('terminal').classList.add('alert-pulse');
+      setTimeout(()=>document.getElementById('terminal').classList.remove('alert-pulse'),3000);
+    }
+  } else { RIG.cooling.stress=Math.max(0,RIG.cooling.stress-.12); }
+  GS.hopPing=GS.hops.length*40+Math.round(Math.random()*6);
+  // Shadow threshold check
+  if(GS.shadowThreshold>=80 && GS.act<4 && !GS.questFlags.shadow_triggered){
+    GS.questFlags.shadow_triggered=true;
+    if(GS.vesselShards.length>=2) advanceAct(4);
+    else advanceAct(3);
+  }
+  // Contract timeout check
+  Object.entries(GS.activeContracts).forEach(([id,ac])=>{
+    if(!ac.completed && Date.now()>ac.deadline){
+      const c=SIDE_CONTRACTS.find(s=>s.id===id);
+      tprint(`[CONTRACT EXPIRED] ${c?.title||id} — time ran out.`,'terr');
+      delete GS.activeContracts[id];
+      renderMissions();
+    }
+    if(!ac.completed) { const c=SIDE_CONTRACTS.find(s=>s.id===id); if(c) checkContractComplete(id); }
+  });
+  // Thermal stress contract
+  if(GS.cpuLoad>60 && GS.activeContracts['sc6'] && !GS.questFlags['sc6_started']){
+    GS.questFlags['sc6_started']=true; GS.questFlags['sc6_timer']=Date.now();
+  }
+  if(GS.questFlags['sc6_started']&&GS.cpuLoad>60&&!GS.questFlags['sc6_thermal']){
+    if(Date.now()-GS.questFlags['sc6_timer']>=60000){ GS.questFlags['sc6_thermal']=true; checkContractComplete('sc6'); }
+  }
+  // Proxy chain contract
+  if(GS.hops.length>=3 && GS.adminOn.length>0) { GS.questFlags['sc7_proxy']=true; checkContractComplete('sc7'); }
+  // Barvals
+  const rp=(GS.ramUsed/RIG.ramTotal)*100;
+  const cp=GS.cpuLoad, tp=((GS.tempF-98)/(230-98))*100, coolP=100-RIG.cooling.stress, wp=(RIG.weightUsed/RIG.weightCap)*100;
+  set('h-ram',GS.ramUsed.toFixed(1)+'G'); set('h-cpu',Math.round(cp)+'%'); set('h-tmp',Math.round(GS.tempF)+'°F');
+  set('h-cool',RIG.cooling.broken?'BROKEN':Math.round(coolP)+'%'); set('h-wt',RIG.weightUsed+'/'+RIG.weightCap);
+  set('h-cr',GS.wallet); set('h-ping','PING:'+(GS.hops.length?GS.hopPing+'ms':'8ms'));
+  set('h-notor','REP:'+GS.notoriety); set('h-hops',GS.hops.length+'/'+GS.maxHops);
+  set('h-faction',GS.faction?FACTIONS_DATA[GS.faction]?.tag?.toUpperCase()||GS.faction.toUpperCase():(GS.shadowChoice?GS.shadowChoice.toUpperCase():'NO FACTION'));
+  setBar('b-ram',rp,rp>80); setBar('b-cpu',cp,cp>75,cp>90);
+  setBar('b-tmp',tp,tp>50,tp>80); setBar('b-cool',coolP,RIG.cooling.stress>60,RIG.cooling.broken);
+  setBar('b-wt',wp,wp>80,wp>95);
+  document.getElementById('proc-ram-info').textContent=`RAM: ${procsRam().toFixed(1)}G in ${PROCS.length} procs`;
+}
+function set(id,v){const e=document.getElementById(id);if(e)e.textContent=v;}
+function setBar(id,pct,w=false,a=false){const e=document.getElementById(id);if(!e)return;e.style.width=Math.min(pct,100)+'%';e.className='br'+(a?' a':w?' w':'');}
+
+// ── PROCESS PANEL ─────────────────────────────────────────────────────────────
+function renderProcs(){
+  const el=document.getElementById('procs-out'); if(!el) return;
+  el.innerHTML=PROCS.length?PROCS.map(p=>`
+    <div class="proc-row">
+      <span style="color:var(--primary)">[${p.pid}] ${p.name}</span>
+      <span style="color:var(--warn)">${p.target}</span>
+      <span style="color:var(--dim)">${p.ram.toFixed(1)}G ${p.cpu}%CPU</span>
+      <button class="ubtn d" onclick="processInput('kill ${p.pid}')">kill</button>
+    </div>`).join(''):'<span style="color:var(--dim)">No active processes.</span>';
+}
+
+// ── REMOTE PANEL ──────────────────────────────────────────────────────────────
+function updateRemote(){
+  const panel=document.getElementById('remote-panel'), body=document.getElementById('remote-body');
+  if(GS.host==='localhost'){panel.classList.remove('show');return;}
+  const node=NET[GS.host]; panel.classList.add('show');
+  document.getElementById('rp-title').textContent=GS.host+' // '+(node?.name||'??');
+  if(node?.renderType==='website'&&node.website){
+    body.innerHTML=`<div style="height:220px;overflow-y:auto">${node.website}</div>`;
+  } else if(node?.renderType==='eos'){
+    body.innerHTML=`<div class="eos-device"><div style="color:#0f0;margin-bottom:8px">eOS Device Interface</div><div style="color:#888;font-size:10px">${node.name}</div></div>`;
+  } else {
+    const ports=Object.entries(node?.ports||{}).map(([p,d])=>`  ${d.type}:${p} [${d.cracked?'<span style="color:#ffaa00">OPEN</span>':'<span style="color:#ff2244">LOCKED</span>'}]`).join('\n');
+    const fw=node?.firewallLayers>0?`  Firewall: ${node.firewallLayers} layers` : '  Firewall: none';
+    const admin=GS.adminOn.includes(GS.host)?'  Admin: <span style="color:#ffaa00">YES</span>':'  Admin: NO';
+    body.innerHTML=`<div class="ascii-terminal">${node?.ascii||'[ REMOTE NODE ]'}\n\nHost: ${GS.host}\nName: ${node?.name||'??'}\n${fw}\n${admin}\n\nPorts:\n${ports||'  (none visible)'}\n\n${node?.isRelay?'[RELAY] Safe for hops.':''}\n${node?.store?'[STORE] Type: shop':''}${node?.faction?`\n[FACTION] ${FACTIONS_DATA[node.faction]?.name||node.faction}`:''}${node?.shadowGroup?`\n[SHADOW] ${node.shadowGroup.toUpperCase()}`:''}</div>`;
+  }
+}
+
+// ── HOP BAR ───────────────────────────────────────────────────────────────────
+function renderHopBar(){
+  const el=document.getElementById('hop-bar');
+  if(!GS.hops.length){el.textContent='No hops active. Direct connection.'; el.style.color='var(--dim)'; return;}
+  el.style.color='var(--warn)';
+  el.innerHTML=GS.hops.map(h=>`<span style="padding:1px 5px;border:1px solid var(--warn);margin-right:3px;font-size:10px">${h}</span>`).join('<span style="color:var(--dim);font-size:10px">→</span>')+
+    `<span style="color:var(--dim);font-size:10px">→</span><span style="padding:1px 5px;border:1px solid var(--primary);margin-right:3px;font-size:10px;color:var(--primary)">${GS.host}</span>`+
+    `<span style="color:var(--dim);font-size:10px;margin-left:8px">+${GS.hopPing}ms PING | RAM ${(GS.hops.length*.3).toFixed(1)}G | CPU ${GS.hops.length*5}%</span>`;
+}
+
+// ── DISCONNECT ────────────────────────────────────────────────────────────────
+function doDisconnect(){
+  endTrace(false);
+  if(GS.questFlags.auto_log_wipe && GS.host!=='localhost'){
+    // auto wipe logs
+    const node=NET[GS.host];
+    if(node) Object.keys(node.fs).filter(k=>k.includes('/log')).forEach(k=>delete node.fs[k]);
+    tprint('[AutoLogWipe] Logs wiped automatically.','tsys');
+  }
+  GS.host='localhost';
+  document.getElementById('prompt').textContent='root@localhost:/# ';
+  document.getElementById('term-host').textContent='root@localhost';
+  updateRemote(); drawNet(); renderFiles(); renderHopBar();
+  tprint('Disconnected.','twrn');
+}
+
+// ── INTEL DRONE ───────────────────────────────────────────────────────────────
+function startIntelDrone(){
+  tprint('[INTEL DRONE] Deployed. Auto-scanning 60s.','tinf');
+  let t=0;
+  const iv=setInterval(()=>{
+    t+=5; if(t>60){clearInterval(iv); tprint('[INTEL DRONE] Offline.','tsys'); return;}
+    const cur=NET[GS.host];
+    if(cur?.connections) cur.connections.forEach(ip=>{
+      if(!GS.discovered.includes(ip)){
+        GS.discovered.push(ip);
+        tprint('[DRONE] Discovered: '+ip+' — '+(NET[ip]?.name||'??'),'twrn');
+        drawNet();
+      }
+    });
+  },5000);
+}
+
+// ── COMMANDS ──────────────────────────────────────────────────────────────────
+const CMD={
+  help:{run:()=>{
+    tsep(); tprint('ASYNC_OS COMMAND REFERENCE','tinf');
+    [['help','This help'],['scan','Map adjacent nodes'],['ls','List files'],['cat [file]','Read file'],
+     ['probe [ip]','Show node port layout (no trace)'],
+     ['sshcrack [ip]','Crack SSH port 22'],['ftpbounce [ip]','Crack FTP port 21'],
+     ['smtpoverflow [ip]','Crack SMTP port 25'],['webworm [ip]','Crack HTTP port 80'],
+     ['sqlbleed [ip]','Crack SQL port 1433'],
+     ['porthack [ip]','Gain admin (requires open ports)'],
+     ['forkbomb [ip]','Nuke node RAM (emergency)'],
+     ['decypher [file] [pw]','Decrypt .enc file'],
+     ['connect [ip]','Connect to node'],['disconnect','Return to localhost'],
+     ['hop add [ip]','Add proxy hop'],['hop remove [ip]','Remove hop'],
+     ['hops','List hops'],['hops clear','Clear all hops'],
+     ['shop','Browse store on current node'],['buy [id]','Purchase item'],
+     ['join [faction]','Join a faction'],
+     ['align [phantom|archon|neither]','Shadow group alignment'],
+     ['vessel [action]','Assemble VESSEL (Act 4)'],
+     ['theme [name]','Apply theme'],['themes','List themes'],
+     ['plant [text]','Plant a file on current node'],
+     ['ps','List processes'],['kill [pid]','Kill process'],
+     ['note [text]','Add note'],['clear','Clear terminal'],
+     ['status','Full status'],['repair cooling','Repair cooling (200cr)'],
+     ['newgame+','Start New Game+ after ending'],
+    ].forEach(([c,d])=>tprint('  '+c.padEnd(26)+d,'tsys'));
+    tsep();
+  }},
+  clear:{run:()=>{document.getElementById('term-out').innerHTML=''}},
+  scan:{run:()=>{
+    const node=NET[GS.host];
+    tprint('Scanning from '+GS.host+'...','tinf');
+    if(node?.connections){
+      node.connections.forEach(ip=>{
+        const already=GS.discovered.includes(ip);
+        if(!already&&!NET[ip]?.hidden){ GS.discovered.push(ip); tprint('  [NEW] '+ip.padEnd(17)+(NET[ip]?.name||'??'),'twrn'); }
+        else if(already) tprint('  [KNW] '+ip.padEnd(17)+(NET[ip]?.name||'??'),'tsys');
+      });
+    }
+    tprint('Known nodes:','tinf');
+    GS.discovered.forEach(ip=>{const n=NET[ip];const a=ip===GS.host?' [ACTIVE]':'';tprint('  '+ip.padEnd(17)+(n?.name||'??')+a,ip===GS.host?'tok':'tsys');});
+    GS.cpuLoad+=5; GS.shadowThreshold++;
+    drawNet();
+  }},
+  ls:{run:()=>{
+    const node=NET[GS.host];
+    if(!node?.fs){tprint('No filesystem.','terr');return;}
+    tprint('Files on '+GS.host+':','tinf');
+    Object.entries(node.fs).forEach(([p,f])=>{
+      if(f.content==='[rendered above]') return;
+      const fname=p.split('/').pop();
+      const tags=(f.prot?'[LOCK] ':'')+(f.encrypted?'[ENC] ':'')+(f.isTheme?'[THEME] ':'')+(f.vesselShard?'[SHARD] ':'')+(f.isLog?'[LOG] ':'');
+      tprint('  '+fname.padEnd(24)+tags,'tok');
+    });
+  }},
+  cat:{run:(args)=>{
+    if(!args[0]){tprint('Usage: cat [filename]','twrn');return;}
+    const node=NET[GS.host]; if(!node?.fs){tprint('No filesystem.','terr');return;}
+    const path=Object.keys(node.fs).find(k=>k.endsWith('/'+args[0])||k.endsWith(args[0]));
+    if(!path){tprint('File not found: '+args[0],'terr');return;}
+    const f=node.fs[path];
+    if(f.encrypted){tprint('[ENCRYPTED] Use: decypher '+args[0]+' [password]','twrn');return;}
+    tsep(); tprint(f.content,'tok'); tsep();
+    if(f.questItem) handleQuestItem(f.questItem);
+    if(f.vesselShard&&!GS.vesselShards.includes(f.vesselShard)) collectShard(f.vesselShard,path);
+    // sc5 recon
+    if(GS.host==='10.77.0.1') { GS.questFlags['sc5_recon']=true; checkContractComplete('sc5'); }
+  }},
+  probe:{run:(args)=>{
+    const ip=args[0]||GS.host; const node=NET[ip];
+    if(!node){tprint('Host not found.','terr');return;}
+    if(!GS.discovered.includes(ip)){tprint('Unknown node. Run scan first.','terr');return;}
+    tprint('PORT SCAN: '+ip+' — '+node.name,'tinf');
+    if(node.firewallLayers>0) tprint(`  Firewall: ${node.firewallLayers} layer(s)`,'terr');
+    else tprint('  Firewall: none','tok');
+    Object.entries(node.ports||{}).forEach(([port,d])=>{
+      tprint(`  Port ${port} (${d.type}): ${d.cracked?'[OPEN]':'[LOCKED]'} — use ${Object.values(PORT_TOOLS).find(t=>PORT_ALIASES[t.cmd]===+port)?.cmd||'?'}`, d.cracked?'tok':'terr');
+    });
+    const cracked=Object.values(node.ports||{}).filter(p=>p.cracked).length;
+    const total=Object.keys(node.ports||{}).length;
+    const needed=Math.max(1,Math.ceil(total/2));
+    tprint(`  PortHack needs ${needed} open ports. Currently: ${cracked}/${total}.`,'tinf');
+  }},
+  connect:{run:(args)=>{
+    if(!args[0]){tprint('Usage: connect [ip]','twrn');return;}
+    const ip=args[0],node=NET[ip];
+    if(!node){tprint('Host unreachable: '+ip,'terr');return;}
+    if(!GS.discovered.includes(ip)){tprint('Unknown host. Run scan first.','terr');return;}
+    if(node.firewallLayers>0&&!GS.adminOn.includes(ip)){tprint('Connection refused. Firewall active. Crack it first.','terr');return;}
+    if(node.questGate&&!GS.questFlags[node.questGate]){tprint('Access denied. Complete prerequisites first.','terr');return;}
+    GS.host=ip;
+    tprint('Connected to '+ip+' ['+node.name+']','tok');
+    document.getElementById('prompt').textContent='root@'+ip+':/# ';
+    document.getElementById('term-host').textContent='root@'+ip;
+    updateRemote(); drawNet(); renderFiles(); renderHopBar();
+    if(node.isRelay) tprint('Relay node. Use: hop add '+ip+' to add to chain.','tinf');
+    if(node.store) tprint('Store available. Type: shop','tinf');
+    GS.shadowThreshold+=2;
+  }},
+  disconnect:{run:()=>doDisconnect()},
+  sshcrack:    {run:(args)=>crackPort('sshcrack',  22,  args[0])},
+  ftpbounce:   {run:(args)=>crackPort('ftpbounce', 21,  args[0])},
+  smtpoverflow:{run:(args)=>crackPort('smtpoverflow',25,args[0])},
+  webworm:     {run:(args)=>crackPort('webworm',   80,  args[0])},
+  sqlbleed:    {run:(args)=>crackPort('sqlbleed',  1433,args[0])},
+  porthack:    {run:(args)=>portHack(args[0])},
+  forkbomb:    {run:(args)=>forkbomb(args[0]||GS.host)},
+  decypher:{run:(args)=>{
+    if(!args[0]){tprint('Usage: decypher [file] [password]','twrn');return;}
+    decypher(args[0],args[1]||'');
+  }},
+  crack:{run:(args)=>{
+    // Generic crack wrapper — crack [ip] (uses all available tools in sequence)
+    const ip=args[0]||GS.host; const node=NET[ip];
+    if(!node){tprint('Host not found.','terr');return;}
+    if(!GS.discovered.includes(ip)){tprint('Scan first.','terr');return;}
+    tprint('Attempting all available port cracks on '+ip+'...','twrn');
+    let delay=0;
+    Object.entries(node.ports||{}).forEach(([port,d])=>{
+      if(d.cracked) return;
+      const tool=PORT_TOOLS[+port]; if(!tool) return;
+      if(!GS.questFlags[tool.flag]) return;
+      setTimeout(()=>crackPort(tool.cmd,+port),delay);
+      delay+=500;
+    });
+    if(delay===0) tprint('No tools available or all ports already cracked.','twrn');
+  }},
+  hop:{run:(args)=>{
+    if(args[0]==='add'){
+      const ip=args[1]; if(!ip){tprint('Usage: hop add [ip]','twrn');return;}
+      if(!NET[ip]){tprint('Unknown node.','terr');return;}
+      if(GS.hops.includes(ip)){tprint('Already in chain.','twrn');return;}
+      if(GS.hops.length>=GS.maxHops){tprint(`Max hops reached (${GS.maxHops}). Buy Proxy Package.`,'terr');return;}
+      if(GS.ramUsed+0.3>RIG.ramTotal){tprint('Insufficient RAM.','terr');return;}
+      GS.hops.push(ip); tprint('Hop added: '+ip,'twrn'); renderHopBar(); drawNet(); updateHUD();
+    } else if(args[0]==='remove'){
+      const idx=GS.hops.indexOf(args[1]);
+      if(idx<0){tprint('Not in chain.','terr');return;}
+      GS.hops.splice(idx,1); tprint('Hop removed.','tok'); renderHopBar(); drawNet(); updateHUD();
+    } else tprint('Usage: hop add [ip] | hop remove [ip]','twrn');
+  }},
+  hops:{run:(args)=>{
+    if(args[0]==='clear'){GS.hops=[];tprint('All hops cleared.','tok');renderHopBar();drawNet();return;}
+    if(!GS.hops.length){tprint('No hops active.','tsys');return;}
+    tprint(`Active hops (${GS.hops.length}/${GS.maxHops}):`, 'tinf');
+    GS.hops.forEach((h,i)=>tprint(`  [${i+1}] ${h} — ${NET[h]?.name||'??'}`,'twrn'));
+    tprint(`  Ping overhead: +${GS.hopPing}ms | RAM: +${(GS.hops.length*.3).toFixed(1)}G`,'tsys');
+  }},
+  shop:{run:()=>{
+    const node=NET[GS.host]; if(!node?.store){tprint('No store here.','terr');return;}
+    const key=node.store;
+    let items=key==='open'?OPEN_STORE_ITEMS:(FACTION_STORES[key]||[]);
+    if(key!=='open'){
+      const reqFaction=node.factionRequired;
+      const shadowOk=(key==='phantom'&&GS.shadowChoice==='phantom')||(key==='archon'&&GS.shadowChoice==='archon');
+      if(reqFaction&&GS.faction!==reqFaction&&!shadowOk){tprint('Faction/shadow store — members only.','terr');return;}
+    }
+    const disc=GS.faction==='broker'&&GS.questFlags.market_tap?.9:1;
+    tsep(); tprint('STORE: '+node.name,'tinf');
+    items.forEach(item=>{
+      const price=Math.round(item.cost*disc);
+      tprint(`  [${item.id}]  ${item.name.padEnd(20)} ${String(price+'cr').padEnd(8)} ${item.wt}wt  — ${item.desc}`,'tok');
+    });
+    tprint(`  Wallet: ${GS.wallet}cr${disc<1?' (Broker -10%)':''}`,'tsys');
+    tsep(); tprint('Type: buy [id]','tsys');
+  }},
+  buy:{run:(args)=>{
+    if(!args[0]){tprint('Usage: buy [id]','twrn');return;}
+    const node=NET[GS.host]; if(!node?.store){tprint('No store.','terr');return;}
+    const key=node.store;
+    const items=key==='open'?OPEN_STORE_ITEMS:(FACTION_STORES[key]||[]);
+    const shadowOk=(key==='phantom'&&GS.shadowChoice==='phantom')||(key==='archon'&&GS.shadowChoice==='archon');
+    if(key!=='open'&&GS.faction!==node.factionRequired&&!shadowOk){tprint('Members only.','terr');return;}
+    const item=items.find(i=>i.id===args[0]);
+    if(!item){tprint('Item not found: '+args[0],'terr');return;}
+    const disc=GS.faction==='broker'&&GS.questFlags.market_tap?.9:1;
+    const price=Math.round(item.cost*disc);
+    if(RIG.weightUsed+(item.wt||0)>RIG.weightCap){tprint('Not enough weight capacity.','terr');return;}
+    if(GS.wallet<price){tprint(`Need ${price}cr, have ${GS.wallet}cr.`,'terr');return;}
+    GS.wallet-=price; RIG.weightUsed+=(item.wt||0);
+    tprint(`Purchased: ${item.name} (-${price}cr)`,'tok');
+    item.effect(); updateHUD();
+  }},
+  join:{run:(args)=>{
+    const id=args[0]?.toLowerCase();
+    if(!id||!FACTIONS_DATA[id]){tprint('Usage: join [wraith|bastion|broker]','twrn');return;}
+    if(GS.faction){tprint('Already in '+FACTIONS_DATA[GS.faction].name,'terr');return;}
+    const f=FACTIONS_DATA[id];
+    const fNode=Object.entries(NET).find(([,n])=>n.faction===id);
+    if(fNode&&!GS.discovered.includes(fNode[0])){tprint('Find them first.','terr');return;}
+    GS.faction=id; GS.factionRep[id]=(GS.factionRep[id]||0)+50;
+    tprint(`[FACTION] Joined: ${f.name}`,'twrn');
+    tprint(`[FACTION] ${f.tag}`,'tinf');
+    unlockTheme(f.theme); applyTheme(f.theme);
+    renderFactions(); updateHUD(); checkQuestProgress();
+    ircMsg('general','n0de_bot',`[N0DE-BOT] A runner has joined ${f.name}.`,'im-sys');
+  }},
+  align:{run:(args)=>alignTo(args[0]?.toLowerCase())},
+  vessel:{run:(args)=>vesselCommand(args.join(' '))},
+  theme:{run:(args)=>{
+    if(!args[0]){tprint('Usage: theme [name]','twrn');return;}
+    applyTheme(args[0]);
+  }},
+  themes:{run:()=>{
+    tprint('Available themes:','tinf');
+    Object.entries(THEMES).forEach(([id,t])=>{
+      const avail=!t.locked||GS.stolenThemes.includes(id);
+      tprint('  '+id.padEnd(16)+t.name+(avail?' [UNLOCKED]':'  [locked]'),avail?'tok':'tsys');
+    });
+  }},
+  plant:{run:(args)=>{
+    if(!args.length){tprint('Usage: plant [text]','twrn');return;}
+    if(GS.host==='localhost'){tprint('Plant on a remote node.','terr');return;}
+    const node=NET[GS.host]; if(!node){tprint('Not connected.','terr');return;}
+    const content=args.join(' ');
+    node.fs['/home/planted.txt']={content,prot:false,planted:true};
+    tprint('File planted: /home/planted.txt','tok');
+    checkContractComplete('sc4'); renderFiles();
+  }},
+  ps:{run:()=>{
+    if(!PROCS.length){tprint('No active processes.','tsys');return;}
+    tprint('PID    NAME          RAM    CPU   TARGET','tinf');
+    PROCS.forEach(p=>tprint(`  ${String(p.pid).padEnd(5)} ${p.name.padEnd(14)} ${p.ram.toFixed(1)+'G'.padEnd(7)} ${String(p.cpu+'%').padEnd(6)} ${p.target}`,'tok'));
+    switchRTab('procs');
+  }},
+  kill:{run:(args)=>{
+    const pid=parseInt(args[0]);
+    if(!pid){tprint('Usage: kill [pid]','twrn');return;}
+    const p=PROCS.find(x=>x.pid===pid);
+    if(!p){tprint('PID not found: '+pid,'terr');return;}
+    killProc(pid); tprint('Process killed: '+p.name,'tok');
+  }},
+  note:{run:(args)=>{
+    if(!args.length){tprint('Usage: note [text]','twrn');return;}
+    GS.notes.push(args.join(' ')); renderNotes(); tprint('Note saved.','tsys');
+  }},
+  status:{run:()=>{
+    tsep(); tprint('SYSTEM STATUS','tinf');
+    tprint(`  RAM:       ${GS.ramUsed.toFixed(1)}G used / ${RIG.ramTotal}G total`,'tok');
+    tprint(`  CPU:       ${Math.round(GS.cpuLoad)}%`,'tok');
+    tprint(`  Temp:      ${Math.round(GS.tempF)}°F${GS.tempF>165?' [DANGER]':''}`,'tok');
+    tprint(`  Cooling:   ${RIG.cooling.broken?'BROKEN':(100-RIG.cooling.stress).toFixed(0)+'% health'}`,'tok');
+    tprint(`  Weight:    ${RIG.weightUsed}/${RIG.weightCap}`,'tok');
+    tprint(`  Hops:      ${GS.hops.length}/${GS.maxHops} | Ping +${GS.hopPing}ms`,'tok');
+    tprint(`  Wallet:    ${GS.wallet}cr`,'tok');
+    tprint(`  Notoriety: ${GS.notoriety}`,'tok');
+    tprint(`  Act:       ${GS.act}`,'tok');
+    tprint(`  Faction:   ${GS.faction||'none'}`,'tok');
+    tprint(`  Shadow:    ${GS.shadowChoice||'undecided'}`,'tok');
+    tprint(`  VESSEL:    ${GS.vesselShards.length}/7 shards`,'tok');
+    tprint(`  Threshold: ${GS.shadowThreshold}/80 (shadow trigger)`,'tok');
+    tsep();
+  }},
+  repair:{run:(args)=>{
+    if(args[0]!=='cooling'){tprint('Usage: repair cooling','twrn');return;}
+    if(!RIG.cooling.broken&&RIG.cooling.stress<20){tprint('Cooling is fine.','tok');return;}
+    if(GS.wallet<200){tprint('Repair costs 200cr.','terr');return;}
+    GS.wallet-=200; RIG.cooling.broken=false; RIG.cooling.stress=0;
+    tprint('Cooling repaired. -200cr.','tok'); updateHUD();
+  }},
+  'newgame+':{run:()=>{
+    if(!GS.questFlags.vessel_assembled){tprint('Complete the game first.','terr');return;}
+    tprint('[NG+] Starting New Game Plus...','thack');
+    const carryover={wallet:Math.round(GS.wallet*.5), stolenThemes:GS.stolenThemes, faction:GS.faction, ng:true};
+    setTimeout(()=>initGame(carryover),2000);
+  }},
+};
+
+function crackPort(cmd,port,targetIp){
+  const ip=targetIp||GS.host;
+  if(targetIp&&ip!==GS.host){
+    // Remote crack attempt — connect first
+    tprint('Must be connected to target to crack ports. Use: connect '+ip,'twrn'); return;
+  }
+  const node=NET[ip]; if(!node){tprint('Not connected to a node.','terr');return;}
+  const tool=Object.values(PORT_TOOLS).find(t=>t.cmd===cmd);
+  if(!tool){tprint('Unknown tool: '+cmd,'terr');return;}
+  if(!GS.questFlags[tool.flag]){tprint(tool.name+' not installed. Buy it at the market (172.20.0.1).','terr');return;}
+  if(!node.ports||!node.ports[port]){tprint(`Port ${port} not found on ${ip}.`,'terr');return;}
+  if(node.ports[port].cracked){tprint(`Port ${port} already open.`,'twrn');return;}
+  if(GS.questFlags.zero_day&&GS.questFlags.zero_day>0){ GS.questFlags.zero_day--; node.ports[port].cracked=true; tprint(`[ZERO-DAY] Port ${port} cracked instantly.`,'thack'); renderFiles(); return; }
+  if(GS.questFlags.gov_crack){ node.ports[port].cracked=true; tprint(`[GOV CRACK] Port ${port} cracked.`,'thack'); renderFiles(); return; }
+  if(procsRam()+tool.ram>RIG.ramTotal-GS.ramUsed){tprint('Insufficient RAM.','terr');return;}
+  tprint(`Running ${tool.name} on ${ip}:${port}...`,'twrn');
+  const proc=spawnProc(tool.name,tool.ram,tool.cpu,ip);
+  GS.shadowThreshold++;
+  setTimeout(()=>{
+    killProc(proc.pid);
+    node.ports[port].cracked=true;
+    GS.openPorts[ip]=GS.openPorts[ip]||[];
+    if(!GS.openPorts[ip].includes(port)) GS.openPorts[ip].push(port);
+    tprint(`Port ${port} (${node.ports[port].type}) opened on ${ip}.`,'thack');
+    checkPortProgress(ip);
+    updateHUD();
+  },tool.secs*1000);
+}
+
+// ── INPUT ─────────────────────────────────────────────────────────────────────
+function processInput(raw){
+  const trimmed=raw.trim(); if(!trimmed) return;
+  GS.history.unshift(trimmed); if(GS.history.length>100) GS.history.pop();
+  GS.histIdx=-1;
+  tprint('root@'+GS.host+':/# '+trimmed,'tc');
+  const parts=trimmed.split(/\s+/);
+  const c=CMD[parts[0]]; if(c) c.run(parts.slice(1));
+  else tprint('Command not found: '+parts[0]+'. Try: help','terr');
+  document.getElementById('cmd').value='';
+}
+document.getElementById('cmd').addEventListener('keydown',e=>{
+  if(e.key==='Enter'){processInput(e.target.value);}
+  else if(e.key==='ArrowUp'){e.preventDefault();if(GS.histIdx<GS.history.length-1){GS.histIdx++;e.target.value=GS.history[GS.histIdx];}}
+  else if(e.key==='ArrowDown'){e.preventDefault();if(GS.histIdx>0){GS.histIdx--;e.target.value=GS.history[GS.histIdx];}else{GS.histIdx=-1;e.target.value='';}}
+});
+document.getElementById('irc-input').addEventListener('keydown',e=>{
+  if(e.key==='Enter'){handleIrcInput(e.target.value);e.target.value='';}
+});
+
+// ── RIGHT TAB SWITCHER ────────────────────────────────────────────────────────
+function switchRTab(tab){
+  ['terminal','irc-panel','procs-panel'].forEach(id=>{
+    document.getElementById(id).style.display='none';
+    document.getElementById(id).classList.remove('show');
+  });
+  document.querySelectorAll('.rtab').forEach((b,i)=>b.classList.toggle('on',['terminal','irc','procs'][i]===tab));
+  if(tab==='terminal'){document.getElementById('terminal').style.display='flex';document.getElementById('terminal').classList.add('show');}
+  if(tab==='irc'){document.getElementById('irc-panel').style.display='flex';document.getElementById('irc-panel').classList.add('show');document.getElementById('irc-tab').classList.remove('notify');renderIrcChan(GS.currentChan);}
+  if(tab==='procs'){document.getElementById('procs-panel').style.display='flex';renderProcs();}
+}
+
+// ── BOOT ──────────────────────────────────────────────────────────────────────
+function boot(carryover){
+  const lines=[
+    '╔══════════════════════════════════════════════════════╗',
+    '║  ASYNC_OS v3.0 — GHOST PROTOCOL                     ║',
+    '║  Find VESSEL. Survive the watchers. Choose wisely.  ║',
+    '╚══════════════════════════════════════════════════════╝',
+    '',
+    'Type \'help\' for commands.',
+    'Type \'cat who_was_bit.txt\' to begin.',
+    carryover?.ng ? '[NG+] Carry-over: '+Math.round(carryover.wallet)+'cr, '+(carryover.stolenThemes?.length||0)+' themes.' : '',
+    '',
+  ];
+  lines.forEach((l,i)=>setTimeout(()=>tprint(l,i<4?'tinf':'tsys'),i*55));
+  if(carryover?.ng){
+    setTimeout(()=>tprint('[NG+] AXIOM\'s messages are different this time.','twrn'),600);
+    NET.localhost.fs['/home/axiom_ng.txt']={content:'You came back.\nI expected that.\nThe net needs someone watching it.\n\nThe shards are in the same places.\nBut the factions remember you.\n\n— AX (NG+)',prot:false};
+  }
+}
+
+function initGame(carryover){
+  if(carryover){
+    GS.wallet=carryover.wallet||500;
+    GS.stolenThemes=carryover.stolenThemes||[];
+    GS.stolenThemes.forEach(t=>unlockTheme(t));
+    if(carryover.faction) GS.faction=carryover.faction;
+    GS.newGamePlus=true;
+    document.getElementById('term-out').innerHTML='';
+    // Reset quest state
+    activeQuestLog=['q1_boot','q1_sandbox','q1_n0de'];
+    completedQuests=[];
+    Object.keys(GS.questFlags).forEach(k=>{ if(!k.startsWith('has_')) delete GS.questFlags[k]; });
+    GS.vesselShards=[]; GS.act=1; GS.shadowThreshold=0; GS.shadowChoice=null;
+  }
+  boot(carryover);
+  renderFiles(); updateRemote(); drawNet(); renderHopBar();
+  startIrcScripts();
+  switchRTab('terminal');
+  setTimeout(()=>{
+    // Queue act1 mail
+    setTimeout(()=>deliverMail('V@n0de.net','Re: the file you found', MAILBOX.find(m=>m.id==='v_act1')?.body||'', 'act1_n0de'),12000);
+    setTimeout(()=>deliverMail('recruit@n0de.net','N0DE Recruitment — Candidate #447', MAILBOX.find(m=>m.id==='node_recruit')?.body||'', 'act1_n0de'),25000);
+  },3000);
+}
+
+// ── RESIZE ────────────────────────────────────────────────────────────────────
+window.addEventListener('resize',()=>{ resizeCanvas(); });
+setTimeout(resizeCanvas,150);
+setInterval(()=>{ updateHUD(); renderHopBar(); if(document.querySelector('.app.hide[id="app-rig"]')===null) renderRig(); },900);
+setInterval(drawNet,5000);
+setInterval(checkQuestProgress,3000);
+
+// ── GO ────────────────────────────────────────────────────────────────────────
+initGame(null);
+// Initial IRC seed
+ircMsg('general','n0de_bot','[N0DE-BOT] Welcome to the network.','im-sys');
+ircMsg('general','d3f4ult','another day, another run','im-npc');
+ircMsg('contracts','n0de_bot','[N0DE-BOT] Contract board is live. /claim [id] to accept.','im-sys');
+ircMsg('tech','c0el','remember: always wipe your logs.','im-npc');
+ircMsg('tech','anon_7','>>> tools before porthack. always. <<<','im-npc');
+</script>
+</body>
+</html>
