@@ -1,0 +1,114 @@
+=== CRITICAL FIX: Connect/Crack Circular Dependency ===
+
+PROBLEM:
+- User types 'connect [ip]' → error: "Must crack firewall first"
+- User types 'crack [port] [ip]' → error: "Must be connected to target first"
+- DEADLOCK: Can't connect without cracking, can't crack without connecting
+
+SOLUTION:
+Separate connection state from firewall state:
+
+1. CONNECT should:
+   - Always allow connection to reachable nodes
+   - Track firewall status separately (doesn't block connection)
+   - Set GS.host = target IP
+   - Show warning if firewall is active
+
+2. CRACK should:
+   - Require being connected first (GS.host !== 'localhost' check if remote)
+   - Attack firewall layers on current host
+   - Once all layers cracked, mark all ports as accessible
+
+3. FILE ACCESS should:
+   - Check if firewall is active AND not fully cracked
+   - If so, block access
+   - Otherwise, allow read/write
+
+CHANGES NEEDED IN connect:{} FUNCTION:
+
+REPLACE THIS:
+  connect:{run:(args)=>{
+    if(!args[0]){tprint('Usage: connect [ip]','twrn');return;}
+    const ip=args[0]; const node=NET[ip];
+    if(!node){tprint('Unknown host: '+ip,'terr');return;}
+    if(node.firewallLayers>0){
+      tprint('Firewall active. Crack it first.','terr'); return;  // <-- THIS IS THE PROBLEM
+    }
+    // ... rest of connect logic
+
+WITH THIS:
+  connect:{run:(args)=>{
+    if(!args[0]){tprint('Usage: connect [ip]','twrn');return;}
+    const ip=args[0]; const node=NET[ip];
+    if(!node){tprint('Unknown host: '+ip,'terr');return;}
+    if(!GS.discovered.includes(ip)){tprint('Unknown node. Run scan first.','terr');return;}
+    
+    // Check if reachable via hops
+    let reachable=false;
+    if(ip==='localhost') reachable=true;
+    else if(GS.hops.length>0) reachable=GS.hops.includes(ip) || NET[GS.host]?.connections?.includes(ip);
+    else reachable=NET['localhost']?.connections?.includes(ip);
+    
+    if(!reachable){tprint('Host not reachable. Check hops or connections.','terr');return;}
+    
+    GS.host=ip;
+    tprint('Connected to '+ip+' ('+node.name+')','tok');
+    
+    // IMPORTANT: Show firewall status but DON'T block connection
+    if(node.firewallLayers>0){
+      tprint('⚠ FIREWALL ACTIVE: '+node.firewallLayers+' layer(s). Crack ports to proceed.','terr');
+    }
+    
+    updateRemote(ip);
+    renderFiles();
+    updateHUD();
+  }},
+
+CHANGES NEEDED IN crackPort() FUNCTION:
+
+REPLACE THIS:
+  function crackPort(cmd,port,targetIp){
+    const ip=targetIp||GS.host;
+    if(targetIp&&ip!==GS.host){
+      tprint('Must be connected to target to crack ports. Use: connect '+ip,'twrn'); return;  // <-- GOOD, KEEP THIS
+    }
+    const node=NET[ip]; if(!node){tprint('Not connected to a node.','terr');return;}
+    // ...
+
+KEEP THAT, BUT ADD firewall check:
+    // Check if firewall is blocking this port
+    if(node.firewallLayers>0 && !node.ports[port].cracked){
+      tprint(`[FIREWALL] ${node.firewallLayers} layer(s) blocking port ${port}. Crack firewall first.`,'twrn');
+      // Could optionally allow starting firewall crack here
+      return;
+    }
+
+ADD NEW: Firewall cracking logic
+
+  function crackFirewall(targetIp){
+    const ip=targetIp||GS.host;
+    const node=NET[ip];
+    if(!node){tprint('Not connected.','terr');return;}
+    if(node.firewallLayers===0){tprint('No firewall active.','tok');return;}
+    
+    const cracked=node.ports ? Object.values(node.ports).filter(p=>p.cracked).length : 0;
+    const total=node.ports ? Object.keys(node.ports).length : 0;
+    const needed=Math.max(1,Math.ceil(total/2));
+    
+    if(cracked<needed){
+      tprint(`Crack ${needed} ports to break through firewall. Currently: ${cracked}/${total}.`,'twrn');
+      return;
+    }
+    
+    // Once enough ports cracked, firewall is breached
+    node.firewallLayers=0;
+    tprint('✓ Firewall breached! Full access granted.','thack');
+    updateRemote(ip);
+  }
+
+KEY INSIGHT:
+- Connection is just setting GS.host
+- Firewall blocks FILE ACCESS, not connection
+- User sees "connected but can't access files" if firewall active
+- Cracking ports eventually disables firewall
+- Once firewall disabled, full file system access
