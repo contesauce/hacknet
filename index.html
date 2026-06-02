@@ -25,9 +25,10 @@
 *{box-sizing:border-box;margin:0;padding:0;}
 html,body{width:100%;height:100%;overflow:hidden;background:var(--bg);color:var(--text);font-family:'Courier New',Courier,monospace;font-size:13px;}
 body::after{content:"";pointer-events:none;position:fixed;inset:0;z-index:9000;
-  background:repeating-linear-gradient(0deg,var(--scanline) 0,var(--scanline) 1px,transparent 1px,transparent 3px);
-  animation:scanflicker 12s infinite;}
-@keyframes scanflicker{0%,100%{opacity:1}96%{opacity:1}96.5%{opacity:.5}97%{opacity:1}99%{opacity:.7}99.3%{opacity:1}}
+  background:repeating-linear-gradient(0deg,var(--scanline) 0,var(--scanline) 1px,transparent 1px,transparent 2px);
+  animation:scanflicker 8s infinite;}
+
+@keyframes scanflicker{0%,100%{opacity:1}40%{opacity:.95}60%{opacity:1}88%{opacity:.92}89%{opacity:.5}89.5%{opacity:1}97%{opacity:.85}97.4%{opacity:1}}
 
 /* ── LAYOUT ─────────────────────────────────────────────────────────────── */
 #root{display:grid;grid-template-rows:44px 1fr;height:100vh;padding:5px;gap:5px;}
@@ -161,9 +162,49 @@ canvas{display:block;width:100%;height:100%;}
 .faction-card{border:1px solid var(--dim);padding:7px;margin-bottom:5px;border-radius:1px;}
 .faction-card.joined{border-color:var(--primary);}
 .store-item{display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-bottom:1px solid var(--dim);}
+/* ── CRT TEXT FUZZ ── */
+#term-out,#irc-out,.scroll{filter:url(#crt-fuzz);}
+/* ── BLOCK CURSOR ── */
+#cmd,#irc-input{caret-color:transparent;}
+#cursor-block,#irc-cursor-block{
+  display:inline-block;width:7px;height:13px;background:var(--primary);
+  vertical-align:middle;margin-left:1px;flex-shrink:0;
+  animation:blink-block .9s step-end infinite;}
+@keyframes blink-block{0%,100%{opacity:1}50%{opacity:0}}
+/* ── BOOT OVERLAY ── */
+#boot-overlay{position:fixed;inset:0;z-index:99999;background:#fff;display:flex;align-items:center;justify-content:center;flex-direction:column;}
+#boot-line{width:100%;height:3px;background:var(--primary);position:absolute;top:50%;transform:translateY(-50%);transition:none;}
+#boot-text{color:#00ff66;font-family:'Courier New',monospace;font-size:13px;letter-spacing:2px;opacity:0;margin-top:20px;}
+/* ── DISCONNECT WIPE ── */
+#disconnect-wipe{position:fixed;inset:0;z-index:9999;background:transparent;pointer-events:none;display:none;}
+#disconnect-wipe.active{display:block;}
+#disconnect-line{position:absolute;left:0;right:0;top:50%;height:2px;background:var(--primary);transform:scaleY(1);transition:none;}
+/* ── TRACE BORDER FLASH ── */
+@keyframes trace-border-pulse{0%,100%{box-shadow:inset 0 0 0 0px var(--alert)}50%{box-shadow:inset 0 0 0 3px var(--alert)}}
+#root.trace-critical{animation:trace-border-pulse .5s infinite;}
+@keyframes trace-border-warn{0%,100%{box-shadow:inset 0 0 0 0px var(--warn)}50%{box-shadow:inset 0 0 0 2px var(--warn)}}
+#root.trace-warn{animation:trace-border-warn 1s infinite;}
 </style>
 </head>
 <body>
+<!-- BOOT OVERLAY -->
+<div id="boot-overlay">
+  <div id="boot-line"></div>
+  <div id="boot-text">ASYNC_OS v3.0 — INITIALIZING...</div>
+</div>
+<!-- DISCONNECT WIPE -->
+<div id="disconnect-wipe"><div id="disconnect-line"></div></div>
+<!-- CRT FUZZ FILTER -->
+<svg style="position:absolute;width:0;height:0;overflow:hidden" aria-hidden="true">
+  <defs>
+    <filter id="crt-fuzz" x="-1%" y="-1%" width="102%" height="102%">
+      <feGaussianBlur stdDeviation="0.35" result="blur"/>
+      <feComponentTransfer in="blur">
+        <feFuncA type="linear" slope="1.15" intercept="-0.05"/>
+      </feComponentTransfer>
+    </filter>
+  </defs>
+</svg>
 
 <!-- TRACE BAR -->
 <div id="trace-wrap">
@@ -261,7 +302,7 @@ canvas{display:block;width:100%;height:100%;}
   <div class="panel" id="terminal" style="flex:1;" onclick="document.getElementById('cmd').focus()">
     <div class="ph"><span>ASYNC_OS // TERMINAL</span><span id="term-host" style="color:var(--dim);font-size:10px">root@localhost</span></div>
     <div id="term-out"></div>
-    <div id="irow"><span id="prompt">root@localhost:/# </span><input id="cmd" type="text" autocomplete="off" spellcheck="false" autofocus></div>
+    <div id="irow"><span id="prompt">root@localhost:/# </span><input id="cmd" type="text" autocomplete="off" spellcheck="false" autofocus><span id="cursor-block"></span></div>
   </div>
   <div class="panel" id="irc-panel" style="flex:1;">
     <div class="ph"><span>IRC</span><span id="irc-chan-label" style="color:var(--dim);font-size:10px">#general</span></div>
@@ -275,7 +316,7 @@ canvas{display:block;width:100%;height:100%;}
     <div id="irc-out"></div>
     <div id="irc-input-row">
       <span id="irc-prompt" style="color:var(--accent)">you@#general&gt; </span>
-      <input id="irc-input" type="text" autocomplete="off" spellcheck="false" placeholder="type /help for commands">
+      <input id="irc-input" type="text" autocomplete="off" spellcheck="false" placeholder="type /help for commands"><span id="irc-cursor-block"></span>
     </div>
   </div>
   <div class="panel" id="procs-panel" style="flex:1;display:none;flex-direction:column;">
@@ -305,6 +346,55 @@ const THEMES = {
   neon:    { cls:'th-neon',    name:'Neon Bleed',      locked:true, desc:'Magenta/cyan. Purchasable.' },
   ice:     { cls:'th-ice',     name:'Ice Shell',       locked:true, desc:'Cold blue-white. Purchasable.' },
 };
+
+// ── AUDIO ENGINE ─────────────────────────────────────────────────────────────
+const AUDIO = (function(){
+  let ctx=null, humGain=null, humOsc=null, enabled=false;
+  function init(){
+    if(ctx) return;
+    ctx=new (window.AudioContext||window.webkitAudioContext)();
+    // 60Hz electrical hum
+    humOsc=ctx.createOscillator();
+    humOsc.type='sine'; humOsc.frequency.value=60;
+    humGain=ctx.createGain(); humGain.gain.value=0.012;
+    humOsc.connect(humGain); humGain.connect(ctx.destination);
+    humOsc.start();
+    enabled=true;
+    schedCrackle();
+  }
+  function schedCrackle(){
+    if(!enabled) return;
+    const delay=4000+Math.random()*14000;
+    setTimeout(()=>{ crackle(); schedCrackle(); }, delay);
+  }
+  function crackle(){
+    if(!ctx||!enabled) return;
+    const buf=ctx.createBuffer(1,ctx.sampleRate*0.06,ctx.sampleRate);
+    const d=buf.getChannelData(0);
+    for(let i=0;i<d.length;i++) d[i]=(Math.random()*2-1)*Math.pow(Math.random(),8);
+    const src=ctx.createBufferSource();
+    src.buffer=buf;
+    const g=ctx.createGain(); g.gain.value=0.08+Math.random()*0.07;
+    src.connect(g); g.connect(ctx.destination); src.start();
+  }
+  function keyclick(){
+    if(!ctx||!enabled) return;
+    const osc=ctx.createOscillator(); osc.type='square';
+    osc.frequency.value=800+Math.random()*400;
+    const g=ctx.createGain();
+    g.gain.setValueAtTime(0.04,ctx.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.0001,ctx.currentTime+0.025);
+    osc.connect(g); g.connect(ctx.destination);
+    osc.start(); osc.stop(ctx.currentTime+0.025);
+  }
+  function toggle(){
+    if(!ctx){ init(); tprint('[AUDIO] Ambient audio ON. Type: audio off to disable.','tsys'); return; }
+    enabled=!enabled;
+    humGain.gain.value=enabled?0.012:0;
+    tprint('[AUDIO] Ambient audio '+(enabled?'ON':'OFF')+'.','tsys');
+  }
+  return {init,keyclick,toggle,isOn:()=>enabled};
+})();
 
 // ── RIG ───────────────────────────────────────────────────────────────────────
 const RIG = {
@@ -859,6 +949,55 @@ const IRC_CONTRACTS_SCRIPT = [
   [420000, 'V4P0R',     '[JOB] Plant evidence on Sandbox — 120cr. /claim sc4'],
 ];
 
+// ── PROCEDURAL IRC CHATTER ───────────────────────────────────────────────────
+const IRC_AMBIENT = {
+  general:[
+    [['d3f4ult','anyone running hot tonight?'],['c0el','always.'],['anon_7','>>> stay dark <<<']],
+    [['V4P0R','heard someone cracked a KRONOS relay'],['d3f4ult','unconfirmed'],['kr0nos_watch','no comment']],
+    [['anon_7','>>> VESSEL is closer than you think <<<'],['c0el','careful what you post here']],
+    [['d3f4ult','ping is terrible tonight'],['c0el','route through the dead relays'],['d3f4ult','good call']],
+    [['n0de_bot','[N0DE-BOT] Notoriety thresholds updated. Watch your exposure.'],['anon_7','>>> noted <<<']],
+    [['V4P0R','three nodes went dark in the last hour'],['d3f4ult','KRONOS cleanup crew?'],['V4P0R','probably']],
+    [['kr0nos_watch','this channel is monitored'],['d3f4ult','hi KRONOS'],['c0el','...'],['kr0nos_watch','...']],
+    [['anon_7','>>> the relays remember every hop <<<'],['c0el','wipe your logs people']],
+    [['d3f4ult','anyone else notice 10.77.0.1 breathing?'],['V4P0R','define breathing'],['d3f4ult','exactly']],
+    [['n0de_bot','[N0DE-BOT] Reminder: #tech has useful intel for new runners.']],
+  ],
+  tech:[
+    [['c0el','porthack needs open ports first. people always forget that.'],['d3f4ult','every time lol']],
+    [['anon_7','>>> ssh is port 22. ftp is 21. always. <<<']],
+    [['d3f4ult','ram usage climbs fast when you run tools. watch your ceiling.']],
+    [['c0el','if cooling breaks mid-run you have maybe 90 seconds before it matters']],
+    [['anon_7','>>> decypher.exe is worth every credit. buy it early <<<'],['d3f4ult','seconded']],
+    [['c0el','proxy chain tip: relays add ping but the trace timer penalty is worth it'],['d3f4ult','especially on the fast nodes']],
+    [['anon_7','>>> log wipe on disconnect. every time. no exceptions. <<<']],
+  ],
+  contracts:[
+    [['V4P0R','market is quiet tonight. good time to run the deep contracts.']],
+    [['n0de_bot','[N0DE-BOT] Payment confirmed for recent completions.']],
+    [['d3f4ult','whoever is sitting on sc8 — KRONOS is watching that node more tonight'],['V4P0R','noted']],
+  ],
+};
+
+function startAmbientIrc(){
+  function schedAmbient(chan){
+    const pool=IRC_AMBIENT[chan]; if(!pool||!pool.length) return;
+    function runNext(){
+      const thread=pool[Math.floor(Math.random()*pool.length)];
+      thread.forEach(([user,text],i)=>{
+        setTimeout(()=>ircMsg(chan,user,text,'im-npc'), i*(1200+Math.random()*1400));
+      });
+      // next thread: 25-90 seconds
+      setTimeout(runNext, 25000+Math.random()*65000);
+    }
+    // first ambient: 90-180s after scripts end
+    setTimeout(runNext, 90000+Math.random()*90000);
+  }
+  schedAmbient('general');
+  schedAmbient('tech');
+  schedAmbient('contracts');
+}
+
 // deepnet messages triggered by shadow threshold
 function triggerDeepnet() {
   document.getElementById('chan-deepnet').style.display = '';
@@ -1272,7 +1411,17 @@ function applyTheme(id){
   const t=THEMES[id];
   if(!t){ tprint('Unknown theme.','terr'); return; }
   if(t.locked && !GS.stolenThemes.includes(id)){ tprint('Theme locked. Steal or buy it first.','terr'); return; }
-  document.body.className=t.cls;
+  // CRT flicker transition
+  const wipe=document.getElementById('disconnect-wipe');
+  if(wipe && id!==GS.currentTheme){
+    wipe.classList.add('active');
+    wipe.style.background='rgba(255,255,255,0.15)';
+    setTimeout(()=>{ wipe.style.background='transparent'; document.body.className=t.cls; },80);
+    setTimeout(()=>{ wipe.style.background='rgba(255,255,255,0.06)'; },100);
+    setTimeout(()=>{ wipe.style.background='transparent'; wipe.classList.remove('active'); },200);
+  } else {
+    document.body.className=t.cls;
+  }
   GS.currentTheme=id;
   tprint(`Theme applied: ${t.name}`,'tinf');
   if(document.getElementById('app-themes').classList.contains('hide')===false) renderThemesPanel();
@@ -1296,7 +1445,13 @@ function startTrace(ip){
     if(GS.questFlags.phantom_cloak){ GS.questFlags.phantom_cloak=false; tprint('[PHANTOM CLOAK] Trace immunity used. Trace frozen.','twrn'); clearInterval(traceInterval); endTrace(false); return; }
     GS.traceSecs--;
     updateTraceBars();
-    if(GS.traceSecs<=10) tprint(`[TRACE] ${GS.traceSecs}s remaining — disconnect or wipe logs NOW`,'terr');
+    const root=document.getElementById('root');
+    if(GS.traceSecs<=10){
+      tprint(`[TRACE] ${GS.traceSecs}s remaining — disconnect or wipe logs NOW`,'terr');
+      root.classList.remove('trace-warn'); root.classList.add('trace-critical');
+    } else if(GS.traceSecs<=20){
+      root.classList.remove('trace-critical'); root.classList.add('trace-warn');
+    }
     if(GS.traceSecs<=0){ clearInterval(traceInterval); traceComplete(); }
   },1000);
 }
@@ -1308,6 +1463,8 @@ function updateTraceBars(){
 function endTrace(caught){
   GS.traceActive=false;
   document.getElementById('trace-wrap').classList.remove('active');
+  const root=document.getElementById('root');
+  root.classList.remove('trace-critical','trace-warn');
   if(traceInterval){ clearInterval(traceInterval); traceInterval=null; }
   if(caught) traceComplete();
 }
@@ -1360,25 +1517,57 @@ function portHack(ip){
     if(GS.questFlags.burst_ready) GS.questFlags.burst_ready=false;
     if(layers>0){ tprint(`Firewall active: ${layers} layer(s). Cannot PortHack yet. Use: sshcrack/ftpbounce/smtpoverflow/webworm/sqlbleed.`,'terr'); return; }
   }
-  tprint(`PortHack executing on ${ip}...`,'thack');
   GS.shadowThreshold+=5; GS.notoriety+=3;
   startTrace(ip);
   const proc=spawnProc('PortHack',1.0,25,ip);
+  // Animated crack sequence
+  const hackLines=[
+    `[PORTHACK] Target: ${ip}`,
+    `[PORTHACK] Bypassing auth layer...`,
+    `[PORTHACK] Injecting payload...  [          ]`,
+    `[PORTHACK] Escalating privileges...`,
+    `[PORTHACK] ROOT SHELL OBTAINED`,
+  ];
+  const bars=['[■         ]','[■■        ]','[■■■       ]','[■■■■      ]','[■■■■■     ]','[■■■■■■    ]','[■■■■■■■   ]','[■■■■■■■■  ]','[■■■■■■■■■ ]','[■■■■■■■■■■]'];
+  hackLines.forEach((l,i)=>setTimeout(()=>tprint(l,'thack'),i*380));
+  let barEl=null;
+  let bi=0;
+  const barInt=setInterval(()=>{
+    if(bi>=bars.length){ clearInterval(barInt); return; }
+    // update the progress bar line in place via DOM
+    const lines=document.getElementById('term-out').querySelectorAll('.thack');
+    const target=lines[lines.length-3];
+    if(target) target.textContent=`[PORTHACK] Injecting payload...  ${bars[bi]}`;
+    bi++;
+  },140);
   setTimeout(()=>{
+    clearInterval(barInt);
     killProc(proc.pid);
     if(!GS.adminOn.includes(ip)) GS.adminOn.push(ip);
     node.adminAccess=true;
-    // Unprotect files
     Object.values(node.fs||{}).forEach(f=>{ if(f.prot) f.prot=false; });
     tprint(`Admin access gained on ${ip}.`,'thack');
     tprint('All protected files unlocked. Don\'t forget to wipe logs.','twrn');
     renderFiles(); drawNet(); updateHUD();
     handleAdminGained(ip);
     endTrace(false);
-  },3000);
+  },2200);
 }
 
 function handleAdminGained(ip){
+  // Write intrusion log entry on the target node
+  const node=NET[ip];
+  if(node&&node.fs){
+    const now=new Date();
+    const ts='['+now.toTimeString().slice(0,8)+']';
+    const origin=GS.hops.length>0?GS.hops[0]+' → ... → localhost':'localhost';
+    const logKey='/log/access.log';
+    if(node.fs[logKey]){
+      node.fs[logKey].content += '\n'+ts+' [INTRUSION] Root shell opened. Origin: '+origin+'. All files exposed.';
+    } else {
+      node.fs[logKey]={content:ts+' [INTRUSION] Root shell opened. Origin: '+origin+'.',prot:false,isLog:true};
+    }
+  }
   // Quest triggers
   if(ip==='192.168.1.10'){
     GS.questFlags.found_sandbox_password=true;
@@ -1814,6 +2003,7 @@ function startIrcScripts(){
   IRC_CONTRACTS_SCRIPT.forEach(([delay,user,text])=>{
     setTimeout(()=>ircMsg('contracts',user,text,'im-npc'),delay);
   });
+  startAmbientIrc();
   // Faction channel messages after joining
   const factionCheck=setInterval(()=>{
     if(GS.faction){
@@ -1938,10 +2128,30 @@ function renderHopBar(){
 function doDisconnect(){
   endTrace(false);
   if(GS.questFlags.auto_log_wipe && GS.host!=='localhost'){
-    // auto wipe logs
     const node=NET[GS.host];
     if(node) Object.keys(node.fs).filter(k=>k.includes('/log')).forEach(k=>delete node.fs[k]);
     tprint('[AutoLogWipe] Logs wiped automatically.','tsys');
+  }
+  // CRT collapse animation
+  const wipe=document.getElementById('disconnect-wipe');
+  const line=document.getElementById('disconnect-line');
+  if(wipe&&line){
+    wipe.classList.add('active');
+    // flash white
+    wipe.style.background='rgba(255,255,255,0.12)';
+    setTimeout(()=>{ wipe.style.background='transparent'; },60);
+    // collapse to line
+    line.style.transition='transform 0.18s ease-in';
+    line.style.transform='scaleY(180)';
+    setTimeout(()=>{
+      line.style.transition='width 0.22s ease-out';
+      line.style.transform='scaleY(1)';
+      line.style.width='0%'; line.style.left='50%';
+    },200);
+    setTimeout(()=>{
+      wipe.classList.remove('active');
+      line.style.width='100%'; line.style.left='0';
+    },450);
   }
   GS.host='localhost';
   document.getElementById('prompt').textContent='root@localhost:/# ';
@@ -1992,6 +2202,7 @@ const CMD={
      ['note [text]','Add note'],['clear','Clear terminal'],
      ['status','Full status'],['repair cooling','Repair cooling (200cr)'],
      ['newgame+','Start New Game+ after ending'],
+     ['audio','Toggle ambient CRT audio'],
     ].forEach(([c,d])=>tprint('  '+c.padEnd(26)+d,'tsys'));
     tsep();
   }},
@@ -2055,14 +2266,21 @@ const CMD={
     const ip=args[0],node=NET[ip];
     if(!node){tprint('Host unreachable: '+ip,'terr');return;}
     if(!GS.discovered.includes(ip)){tprint('Unknown host. Run scan first.','terr');return;}
-    if(node.firewallLayers>0&&!GS.adminOn.includes(ip)){tprint('Firewall active on '+ip+'. Crack ports, then use porthack to gain admin.','twrn');}
+
     if(node.questGate&&!GS.questFlags[node.questGate]){tprint('Access denied. Complete prerequisites first.','terr');return;}
+    const now=Date.now();
+    const lastVisit=GS.visitLog?.[ip];
+    GS.visitLog=GS.visitLog||{};
+    GS.visitLog[ip]=now;
     GS.host=ip;
     tprint('Connected to '+ip+' ['+node.name+']','tok');
+    if(lastVisit){ const ago=Math.round((now-lastVisit)/1000); const agoStr=ago<60?ago+'s ago':ago<3600?Math.round(ago/60)+'m ago':Math.round(ago/3600)+'h ago'; tprint('Last accessed: '+agoStr,'tsys'); }
     document.getElementById('prompt').textContent='root@'+ip+':/# ';
     document.getElementById('term-host').textContent='root@'+ip;
     updateRemote(); drawNet(); renderFiles(); renderHopBar();
     if(node.isRelay) tprint('Relay node. Use: hop add '+ip+' to add to chain.','tinf');
+    if(node.adminAccess||GS.adminOn.includes(ip)) tprint('Admin: active.','tok');
+    if(node.firewallLayers>0&&!GS.adminOn.includes(ip)) tprint('Firewall active on '+ip+'. Crack ports, then use porthack to gain admin.','twrn');
     if(node.store) tprint('Store available. Type: shop','tinf');
     GS.shadowThreshold+=2;
   }},
@@ -2227,6 +2445,7 @@ const CMD={
     GS.wallet-=200; RIG.cooling.broken=false; RIG.cooling.stress=0;
     tprint('Cooling repaired. -200cr.','tok'); updateHUD();
   }},
+  audio:{run:(args)=>{ AUDIO.toggle(); }},
   'newgame+':{run:()=>{
     if(!GS.questFlags.vessel_assembled){tprint('Complete the game first.','terr');return;}
     tprint('[NG+] Starting New Game Plus...','thack');
@@ -2267,6 +2486,7 @@ function crackPort(cmd,port,targetIp){
 // ── INPUT ─────────────────────────────────────────────────────────────────────
 function processInput(raw){
   const trimmed=raw.trim(); if(!trimmed) return;
+  AUDIO.keyclick();
   GS.history.unshift(trimmed); if(GS.history.length>100) GS.history.pop();
   GS.histIdx=-1;
   tprint('root@'+GS.host+':/# '+trimmed,'tc');
@@ -2276,7 +2496,27 @@ function processInput(raw){
   document.getElementById('cmd').value='';
 }
 document.getElementById('cmd').addEventListener('keydown',e=>{
+  if(e.key.length===1||e.key==='Backspace') AUDIO.keyclick();
   if(e.key==='Enter'){processInput(e.target.value);}
+  else if(e.key==='Tab'){
+    e.preventDefault();
+    const val=e.target.value.trim();
+    if(!val) return;
+    const parts=val.split(/\s+/);
+    if(parts.length===1){
+      // complete command name
+      const matches=Object.keys(CMD).filter(k=>k.startsWith(parts[0]));
+      if(matches.length===1){ e.target.value=matches[0]+' '; }
+      else if(matches.length>1){ tprint('  '+matches.join('  '),'tsys'); }
+    } else {
+      // complete filename on current node
+      const node=NET[GS.host]; if(!node?.fs) return;
+      const partial=parts[parts.length-1];
+      const names=Object.keys(node.fs).map(p=>p.split('/').pop()).filter(n=>n.startsWith(partial));
+      if(names.length===1){ parts[parts.length-1]=names[0]; e.target.value=parts.join(' '); }
+      else if(names.length>1){ tprint('  '+names.join('  '),'tsys'); }
+    }
+  }
   else if(e.key==='ArrowUp'){e.preventDefault();if(GS.histIdx<GS.history.length-1){GS.histIdx++;e.target.value=GS.history[GS.histIdx];}}
   else if(e.key==='ArrowDown'){e.preventDefault();if(GS.histIdx>0){GS.histIdx--;e.target.value=GS.history[GS.histIdx];}else{GS.histIdx=-1;e.target.value='';}}
 });
@@ -2352,7 +2592,114 @@ setInterval(drawNet,5000);
 setInterval(checkQuestProgress,3000);
 
 // ── GO ────────────────────────────────────────────────────────────────────────
-initGame(null);
+// CRT POWER-ON BOOT SEQUENCE
+(function(){
+  const overlay=document.getElementById('boot-overlay');
+  const line=document.getElementById('boot-line');
+  const txt=document.getElementById('boot-text');
+  if(!overlay) { initGame(null); return; }
+  // Phase 1: white flash
+  overlay.style.background='#ffffff';
+  overlay.style.transition='background 0.1s';
+  setTimeout(()=>{
+    // Phase 2: go black, show the horizontal line
+    overlay.style.background='#000';
+    line.style.display='block';
+    line.style.transform='scaleY(1)';
+    line.style.transition='transform 0.35s cubic-bezier(.7,0,.9,1)';
+  },80);
+  setTimeout(()=>{
+    // Phase 3: line expands to fill screen
+    line.style.transform='scaleY(300)';
+  },180);
+  setTimeout(()=>{
+    // Phase 4: show OS text
+    txt.style.opacity='1';
+    txt.style.transition='opacity 0.2s';
+  },420);
+  setTimeout(()=>{
+    // Phase 5: collapse back to line then vanish
+    line.style.transform='scaleY(1)';
+    line.style.transition='transform 0.25s ease-in';
+    txt.style.opacity='0';
+  },1100);
+  setTimeout(()=>{
+    // Phase 6: fade overlay out, start game
+    overlay.style.opacity='0';
+    overlay.style.transition='opacity 0.25s';
+    initGame(null);
+  },1380);
+  setTimeout(()=>{ overlay.style.display='none'; },1650);
+})();
+// Start audio engine on first user interaction
+document.addEventListener('keydown', ()=>{ if(!AUDIO.isOn()) AUDIO.init(); }, {once:true});
+document.addEventListener('click',   ()=>{ if(!AUDIO.isOn()) AUDIO.init(); }, {once:true});
+
+// ── RANDOM ROLLING SCANLINE ─────────────────────────────────────────────────
+(function(){
+  const beam = document.querySelector('body::before') ? null : null; // use direct style
+  const el = document.createElement('style');
+  // We drive body::before via a dedicated overlay div instead
+  const overlay = document.createElement('div');
+  overlay.id = 'scan-beam';
+  overlay.style.cssText = 'pointer-events:none;position:fixed;inset:0;z-index:9001;opacity:0;will-change:transform,opacity;' +
+    'background:linear-gradient(180deg,transparent 0%,var(--scanline) 40%,transparent 100%);' +
+    'background-size:100% 180px;background-repeat:no-repeat;';
+  document.body.appendChild(overlay);
+
+  function runBeam() {
+    // Random speed 3s–9s, random starting opacity 0.5–1.0
+    const dur   = 3000 + Math.random() * 6000;
+    const alpha = 0.5 + Math.random() * 0.5;
+    const startY = -200;
+    const endY   = window.innerHeight + 50;
+    let start = null;
+    overlay.style.opacity = alpha;
+
+    function step(ts) {
+      if (!start) start = ts;
+      const pct = Math.min((ts - start) / dur, 1);
+      const y   = startY + (endY - startY) * pct;
+      overlay.style.backgroundPosition = '0 ' + y + 'px';
+      if (pct < 1) {
+        requestAnimationFrame(step);
+      } else {
+        overlay.style.opacity = 0;
+        // Wait random gap 1s–12s before next roll
+        const gap = 1000 + Math.random() * 11000;
+        setTimeout(runBeam, gap);
+      }
+    }
+    requestAnimationFrame(step);
+  }
+
+  // First roll after short random delay
+  setTimeout(runBeam, 800 + Math.random() * 3000);
+})();
+
+// ── BLOCK CURSOR FOCUS SYNC ──────────────────────────────────────────────────
+(function(){
+  const cmdEl=document.getElementById('cmd');
+  const ircEl=document.getElementById('irc-input');
+  const cb=document.getElementById('cursor-block');
+  const icb=document.getElementById('irc-cursor-block');
+  function syncCursor(focused,block){
+    if(block) block.style.display=focused?'inline-block':'none';
+  }
+  if(cmdEl&&cb){
+    cmdEl.addEventListener('focus',()=>syncCursor(true,cb));
+    cmdEl.addEventListener('blur',()=>syncCursor(false,cb));
+    // start hidden until focused
+    cb.style.display='none';
+    // auto-show since terminal auto-focuses
+    setTimeout(()=>syncCursor(document.activeElement===cmdEl,cb),200);
+  }
+  if(ircEl&&icb){
+    ircEl.addEventListener('focus',()=>syncCursor(true,icb));
+    ircEl.addEventListener('blur',()=>syncCursor(false,icb));
+    icb.style.display='none';
+  }
+})();
 // Initial IRC seed
 ircMsg('general','n0de_bot','[N0DE-BOT] Welcome to the network.','im-sys');
 ircMsg('general','d3f4ult','another day, another run','im-npc');
