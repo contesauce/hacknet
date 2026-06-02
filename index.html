@@ -1,114 +1,1078 @@
-=== CRITICAL FIX: Connect/Crack Circular Dependency ===
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>ASYNC_OS v8.1 - STABLE</title>
+    <style>
+        :root {
+            --bg: #0a0e14;
+            --primary: #00ff66;
+            --accent: #8833ff;
+            --alert: #ff3333;
+            --warning: #ffaa00;
+            --info: #33ccff;
+            --hack: #ff00ff;
+            --panel-bg: #111820;
+            --border: rgba(0,255,102,0.35);
+        }
 
-PROBLEM:
-- User types 'connect [ip]' → error: "Must crack firewall first"
-- User types 'crack [port] [ip]' → error: "Must be connected to target first"
-- DEADLOCK: Can't connect without cracking, can't crack without connecting
+        * { box-sizing: border-box; touch-action: manipulation; margin: 0; padding: 0; }
 
-SOLUTION:
-Separate connection state from firewall state:
+        body {
+            background: var(--bg);
+            color: var(--primary);
+            font-family: 'Courier New', Courier, monospace;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            padding: 8px;
+            gap: 8px;
+        }
 
-1. CONNECT should:
-   - Always allow connection to reachable nodes
-   - Track firewall status separately (doesn't block connection)
-   - Set GS.host = target IP
-   - Show warning if firewall is active
+        body::after {
+            content: "";
+            position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+            background:
+                linear-gradient(rgba(0,0,0,0) 50%, rgba(0,0,0,0.12) 50%),
+                linear-gradient(90deg, rgba(255,0,0,0.02), rgba(0,255,0,0.01), rgba(0,0,255,0.02));
+            background-size: 100% 3px, 4px 100%;
+            pointer-events: none;
+            z-index: 99999;
+        }
 
-2. CRACK should:
-   - Require being connected first (GS.host !== 'localhost' check if remote)
-   - Attack firewall layers on current host
-   - Once all layers cracked, mark all ports as accessible
+        /* HUD */
+        #hud-bar {
+            flex-shrink: 0;
+            background: var(--panel-bg);
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            padding: 8px 16px;
+            display: flex;
+            align-items: center;
+            gap: 24px;
+            font-size: 13px;
+            font-weight: bold;
+        }
+        .hud-el { display: flex; align-items: center; gap: 7px; }
+        .hud-label { color: var(--accent); letter-spacing: 1px; font-size: 11px; }
+        .gauge-track { background: #1a1a1a; border: 1px solid rgba(0,255,102,0.15); height: 7px; width: 72px; border-radius: 2px; overflow: hidden; }
+        .gauge-fill { height: 100%; width: 0%; background: var(--primary); transition: width 0.4s ease; }
+        .gauge-fill.hot { background: var(--warning); }
+        #hud-credits { margin-left: auto; color: var(--warning); font-size: 13px; }
 
-3. FILE ACCESS should:
-   - Check if firewall is active AND not fully cracked
-   - If so, block access
-   - Otherwise, allow read/write
+        /* VIEWPORT GRID */
+        #viewport {
+            flex-grow: 1;
+            display: grid;
+            gap: 8px;
+            min-height: 0;
+        }
 
-CHANGES NEEDED IN connect:{} FUNCTION:
+        /* PANELS */
+        .panel {
+            background: var(--panel-bg);
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            padding: 10px;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            min-height: 0;
+        }
+        .panel-header {
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            color: var(--accent);
+            font-weight: bold;
+            border-bottom: 1px solid rgba(0,255,102,0.15);
+            padding-bottom: 6px;
+            margin-bottom: 8px;
+            flex-shrink: 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
 
-REPLACE THIS:
-  connect:{run:(args)=>{
-    if(!args[0]){tprint('Usage: connect [ip]','twrn');return;}
-    const ip=args[0]; const node=NET[ip];
-    if(!node){tprint('Unknown host: '+ip,'terr');return;}
-    if(node.firewallLayers>0){
-      tprint('Firewall active. Crack it first.','terr'); return;  // <-- THIS IS THE PROBLEM
+        /* SIDEBAR */
+        #left-sidebar {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            overflow-y: auto;
+            padding: 10px;
+            background: var(--panel-bg);
+            border: 1px solid var(--border);
+            border-radius: 4px;
+        }
+        .sidebar-title {
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            color: var(--accent);
+            font-weight: bold;
+            padding-bottom: 6px;
+            border-bottom: 1px solid rgba(0,255,102,0.15);
+            margin-bottom: 4px;
+            flex-shrink: 0;
+        }
+        .app-panel {
+            background: rgba(0,0,0,0.3);
+            border: 1px solid rgba(0,255,102,0.2);
+            border-radius: 3px;
+            padding: 8px;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            flex-shrink: 0;
+        }
+        .app-panel.hidden-panel { display: none !important; }
+        .app-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 11px;
+            color: var(--info);
+            font-weight: bold;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        .app-body {
+            font-size: 12px;
+            line-height: 1.5;
+            color: #aad4bb;
+            max-height: 120px;
+            overflow-y: auto;
+        }
+        .app-body div { margin-bottom: 3px; }
+
+        .ui-btn {
+            background: rgba(0,255,102,0.08);
+            border: 1px solid var(--primary);
+            color: var(--primary);
+            font-family: inherit;
+            font-size: 10px;
+            padding: 2px 7px;
+            cursor: pointer;
+            border-radius: 2px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .ui-btn:hover { background: var(--primary); color: #000; }
+        .ui-btn.close-btn { border-color: var(--alert); color: var(--alert); }
+        .ui-btn.close-btn:hover { background: var(--alert); color: #000; }
+        .btn-row { display: flex; gap: 4px; }
+
+        /* CENTER STAGE */
+        #center-stage {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            min-height: 0;
+        }
+
+        #remote-screen-overlay {
+            display: none;
+            flex-direction: column;
+            background: #060b10;
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            padding: 12px;
+            overflow-y: auto;
+            flex-shrink: 0;
+            height: 240px;
+            font-size: 12px;
+            gap: 8px;
+        }
+        #remote-screen-overlay.visible { display: flex; }
+
+        .overlay-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-shrink: 0;
+        }
+        .overlay-title { color: var(--info); font-weight: bold; font-size: 12px; }
+        .ascii-art {
+            white-space: pre;
+            font-size: 10px;
+            line-height: 1.15;
+            color: var(--primary);
+            overflow-x: auto;
+        }
+        .overlay-content {
+            background: rgba(0,0,0,0.35);
+            border: 1px solid rgba(0,255,102,0.1);
+            border-radius: 3px;
+            padding: 8px;
+            white-space: pre-wrap;
+            font-size: 11px;
+            color: #99ccaa;
+            line-height: 1.5;
+        }
+        .firewall-banner {
+            background: rgba(255,51,51,0.1);
+            border: 1px solid var(--alert);
+            border-radius: 3px;
+            padding: 6px 10px;
+            font-size: 11px;
+            color: var(--alert);
+            flex-shrink: 0;
+        }
+
+        #map-panel { flex: 1; min-height: 0; }
+        #canvas-container { flex-grow: 1; min-height: 0; }
+        canvas { display: block; width: 100%; height: 100%; background: #05080d; border-radius: 2px; }
+
+        /* TERMINAL */
+        #terminal-panel { min-height: 0; }
+        #terminal-output {
+            flex-grow: 1;
+            overflow-y: auto;
+            white-space: pre-wrap;
+            font-size: 13px;
+            line-height: 1.5;
+            padding-right: 4px;
+            min-height: 0;
+        }
+        .t-line { padding: 1px 0; }
+        .t-cmd  { color: #ffffff; }
+        .t-ok   { color: var(--primary); }
+        .t-err  { color: var(--alert); }
+        .t-info { color: var(--info); }
+        .t-warn { color: var(--warning); }
+        .t-dim  { color: #557755; }
+        .t-hack { color: var(--hack); font-weight: bold; }
+
+        .input-line {
+            flex-shrink: 0;
+            display: flex;
+            align-items: center;
+            border-top: 1px solid rgba(0,255,102,0.15);
+            padding-top: 8px;
+            margin-top: 4px;
+            gap: 6px;
+        }
+        #prompt-label { color: var(--accent); font-weight: bold; white-space: nowrap; font-size: 13px; }
+        #cmd-input {
+            background: transparent;
+            border: none;
+            color: var(--primary);
+            font-family: inherit;
+            font-size: 13px;
+            flex-grow: 1;
+            outline: none;
+            caret-color: var(--primary);
+        }
+
+        .side-tab { display: none; }
+
+        /* DESKTOP */
+        @media (min-width: 801px) {
+            #viewport { grid-template-columns: 260px 1fr 420px; }
+            #terminal-panel { grid-column: 3; }
+        }
+
+        /* MOBILE */
+        @media (max-width: 800px) {
+            #viewport { grid-template-columns: 1fr; position: relative; }
+            #terminal-panel { position: absolute; inset: 0; z-index: 10; }
+
+            #left-sidebar {
+                position: absolute; top: 0; bottom: 0; left: 0;
+                width: 85%; z-index: 50;
+                transform: translateX(-100%);
+                transition: transform 0.3s ease;
+                border-right: 2px solid var(--primary);
+                border-radius: 0;
+            }
+            #left-sidebar.active { transform: translateX(0); }
+
+            #center-stage {
+                position: absolute; top: 0; bottom: 0; right: 0;
+                width: 85%; z-index: 50;
+                transform: translateX(100%);
+                transition: transform 0.3s ease;
+                background: var(--bg);
+                border-left: 2px solid var(--primary);
+                padding: 8px;
+            }
+            #center-stage.active { transform: translateX(0); }
+
+            .side-tab {
+                display: block;
+                position: absolute;
+                top: 45%;
+                background: var(--panel-bg);
+                border: 1px solid var(--border);
+                padding: 10px 4px;
+                z-index: 40;
+                writing-mode: vertical-rl;
+                font-size: 10px;
+                cursor: pointer;
+                letter-spacing: 1px;
+                color: var(--primary);
+            }
+            #tab-apps { left: 0; border-radius: 0 3px 3px 0; }
+            #tab-map  { right: 0; border-radius: 3px 0 0 3px; }
+        }
+    </style>
+</head>
+<body>
+
+<div id="hud-bar">
+    <div class="hud-el">
+        <span class="hud-label">RAM</span>
+        <span id="txt-ram">1.2 / 16.0 GB</span>
+        <div class="gauge-track"><div id="bar-ram" class="gauge-fill"></div></div>
+    </div>
+    <div class="hud-el">
+        <span class="hud-label">CPU</span>
+        <span id="txt-cpu">3%</span>
+        <div class="gauge-track"><div id="bar-cpu" class="gauge-fill"></div></div>
+    </div>
+    <div class="hud-el">
+        <span class="hud-label">TEMP</span>
+        <span id="txt-temp">38C</span>
+        <div class="gauge-track"><div id="bar-temp" class="gauge-fill"></div></div>
+    </div>
+    <div id="hud-credits">CR: <span id="txt-wallet">100</span></div>
+</div>
+
+<div id="viewport">
+
+    <div id="tab-apps" class="side-tab" onclick="togglePanel('left')">APPS</div>
+    <div id="tab-map"  class="side-tab" onclick="togglePanel('right')">MAP</div>
+
+    <!-- SIDEBAR -->
+    <div id="left-sidebar">
+        <div class="sidebar-title">Volatile Utilities</div>
+
+        <div class="app-panel hidden-panel" id="app-files">
+            <div class="app-header">
+                <span>Filesystem</span>
+                <button class="ui-btn close-btn" onclick="runCmd('files close')">close</button>
+            </div>
+            <div class="app-body" id="files-output">
+                <div>/sys</div><div>/targets</div><div>local_node.conf</div><div>shadow_tickets.db</div>
+            </div>
+        </div>
+
+        <div class="app-panel hidden-panel" id="app-notes">
+            <div class="app-header">
+                <span>Ops Notebook</span>
+                <div class="btn-row">
+                    <button class="ui-btn" onclick="newNote()">+ note</button>
+                    <button class="ui-btn close-btn" onclick="runCmd('notes close')">close</button>
+                </div>
+            </div>
+            <div class="app-body" id="notes-output"></div>
+        </div>
+
+        <div class="app-panel hidden-panel" id="app-mail">
+            <div class="app-header">
+                <span>Comms Spool</span>
+                <button class="ui-btn close-btn" onclick="runCmd('mail close')">close</button>
+            </div>
+            <div class="app-body" id="mail-output"></div>
+        </div>
+    </div>
+
+    <!-- CENTER STAGE -->
+    <div id="center-stage">
+        <div id="remote-screen-overlay">
+            <div class="overlay-header">
+                <span class="overlay-title" id="overlay-title">--</span>
+                <button class="ui-btn close-btn" onclick="runCmd('disconnect')">X Terminate</button>
+            </div>
+            <div id="firewall-banner" class="firewall-banner" style="display:none"></div>
+            <div class="ascii-art" id="overlay-ascii"></div>
+            <div class="overlay-content" id="overlay-content"></div>
+        </div>
+
+        <div class="panel" id="map-panel">
+            <div class="panel-header">SYS_TOPOLOGY // NETWORK GRAPH</div>
+            <div id="canvas-container">
+                <canvas id="networkCanvas"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <!-- TERMINAL -->
+    <div class="panel" id="terminal-panel">
+        <div class="panel-header">ASYNC_OS HOST CONSOLE</div>
+        <div id="terminal-output"></div>
+        <div class="input-line">
+            <span id="prompt-label">root@localhost:/#</span>
+            <input id="cmd-input" type="text" autofocus autocomplete="off"
+                   autocorrect="off" autocapitalize="off" spellcheck="false">
+        </div>
+    </div>
+
+</div>
+
+<script>
+// ================================================================
+//  ELEMENT REFS
+// ================================================================
+const termOut       = document.getElementById('terminal-output');
+const cmdInput      = document.getElementById('cmd-input');
+const promptLabel   = document.getElementById('prompt-label');
+const leftSidebar   = document.getElementById('left-sidebar');
+const centerStage   = document.getElementById('center-stage');
+const remoteOverlay = document.getElementById('remote-screen-overlay');
+const fwBanner      = document.getElementById('firewall-banner');
+const canvas        = document.getElementById('networkCanvas');
+const ctx           = canvas.getContext('2d');
+const barRam        = document.getElementById('bar-ram');
+const barCpu        = document.getElementById('bar-cpu');
+const barTemp       = document.getElementById('bar-temp');
+const txtRam        = document.getElementById('txt-ram');
+const txtCpu        = document.getElementById('txt-cpu');
+const txtTemp       = document.getElementById('txt-temp');
+const txtWallet     = document.getElementById('txt-wallet');
+
+// ================================================================
+//  NETWORK REGISTRY
+//  firewallLayers : how many firewall layers guard file access
+//  ports          : attack surface — each can be cracked independently
+//  files          : accessible only after firewall is cleared
+// ================================================================
+const NET = {
+    "localhost": {
+        name: "Home Rig", x: 70, y: 130, color: '#33ccff',
+        connections: ["10.0.4.2", "192.168.44.12", "74.22.105.4"],
+        firewallLayers: 0,
+        ports: {},
+        files: { "local_node.conf": "hostname=localhost | role=operator", "shadow_tickets.db": "Ticket store empty. Populate via target acquisition." }
+    },
+    "10.0.4.2": {
+        name: "IRC_Underground", x: 190, y: 60, color: '#ffaa00',
+        connections: [],
+        title: "UNDERGROUND IRC // CHAN #0DAY",
+        ascii: [
+            "  ___ ____   ____   _   _           _                                         _ ",
+            " |_ _|  _ \\ / ___| | | | |_ __   __| | ___ _ __ __ _ _ __ ___  _   _ _ __   __| |",
+            "  | || |_) | |     | | | | '_ \\ / _` |/ _ \\ '__/ _` | '__/ _ \\| | | | '_ \\ / _` |",
+            "  | ||  _ <| |___  | |_| | | | | (_| |  __/ | | (_| | | | (_) | |_| | | | | (_| |",
+            " |___|_| \\_\\\\____| \\___/|_| |_|\\__,_|\\___|_|  \\__, |_|  \\___/ \\__,_|_| |_|\\__,_|",
+            "                                               |___/                               "
+        ].join("\n"),
+        content: "[anon_vanguard]: Anyone have creds for the bistro backend?\n[sys_reaper]: Check shadow_tickets.db on your home rig -- legacy db still open.\n[n0de_ghost]: Shadow Store has fresh exploits. 45cr for the kernel payload.",
+        firewallLayers: 1,
+        ports: {
+            21:  { service: "FTP",  cracked: false },
+            22:  { service: "SSH",  cracked: false }
+        },
+        files: {
+            "chan_logs.txt": "Bistro admin creds hint: user=miadmin | pw=italianfood1992",
+            "node_map.db":   "Relay hops: 192.168.44.12 -> shadow_store confirmed"
+        }
+    },
+    "192.168.44.12": {
+        name: "Bistro_Front", x: 195, y: 200, color: '#ff3333',
+        connections: [],
+        title: "MAMMA MIA'S BISTRO // WEB FRONT DOOR",
+        ascii: [
+            "     .-.        ______       .-.",
+            "    /_ _\\      |BISTRO|     /_ _\\",
+            "    |o o|      | MENU |     |o o|",
+            "     \\_v/       \\____/       \\_v/  "
+        ].join("\n"),
+        content: "--- WELCOME TO OUR HOMEPAGE ---\n[ALERT] SQL injection vector on /order?id= parameter.\nStandard port 80 hardened. Search for alternate entry points.\n[HINT] Legacy admin panel may exist on a non-standard port.",
+        firewallLayers: 2,
+        ports: {
+            80:   { service: "HTTP",  cracked: false },
+            443:  { service: "HTTPS", cracked: false },
+            8080: { service: "ALT",   cracked: false }
+        },
+        files: {
+            "orders.db":  "847 customer records. Payment tokens exposed in plaintext.",
+            "admin.cfg":  "admin_panel=/manage | legacy_auth=TRUE | bypass=token_reuse"
+        }
+    },
+    "74.22.105.4": {
+        name: "Shadow_Store", x: 330, y: 125, color: '#8833ff',
+        connections: [],
+        title: "THE SHADOW STORE // BLACK MARKET LAYER",
+        ascii: [
+            "    .---.    ___________    .---.",
+            "   /  .  \\  [ SHADOW_MKT]  /  .  \\",
+            "   |  |  |   \\_CATALOG_/   |  |  |",
+            "    \\  '  /   |=========|   \\  '  /"
+        ].join("\n"),
+        content: "--- MARKETPLACE ONLINE ---\n[A] Kernel exploit payload ............. 45 CR\n[B] Encrypted relay proxy tickets ....... 20 CR\n[C] Shadow ticket forge kit ............ 80 CR\n\nType: buy [A/B/C] to purchase.",
+        firewallLayers: 0,
+        ports: {
+            1337: { service: "MARKET", cracked: false }
+        },
+        files: {
+            "catalog.db": "Full item manifest. All SKUs and pricing loaded."
+        }
     }
-    // ... rest of connect logic
+};
 
-WITH THIS:
-  connect:{run:(args)=>{
-    if(!args[0]){tprint('Usage: connect [ip]','twrn');return;}
-    const ip=args[0]; const node=NET[ip];
-    if(!node){tprint('Unknown host: '+ip,'terr');return;}
-    if(!GS.discovered.includes(ip)){tprint('Unknown node. Run scan first.','terr');return;}
-    
-    // Check if reachable via hops
-    let reachable=false;
-    if(ip==='localhost') reachable=true;
-    else if(GS.hops.length>0) reachable=GS.hops.includes(ip) || NET[GS.host]?.connections?.includes(ip);
-    else reachable=NET['localhost']?.connections?.includes(ip);
-    
-    if(!reachable){tprint('Host not reachable. Check hops or connections.','terr');return;}
-    
-    GS.host=ip;
-    tprint('Connected to '+ip+' ('+node.name+')','tok');
-    
-    // IMPORTANT: Show firewall status but DON'T block connection
-    if(node.firewallLayers>0){
-      tprint('⚠ FIREWALL ACTIVE: '+node.firewallLayers+' layer(s). Crack ports to proceed.','terr');
+// ================================================================
+//  GAME STATE
+// ================================================================
+const GS = {
+    host:           "localhost",
+    discovered:     ["localhost", "10.0.4.2", "192.168.44.12", "74.22.105.4"],
+    notesArray:     ["Mapped three external vector surfaces. Investigate each."],
+    credits:        100,
+    appsRunning:    { files: false, notes: false, mail: false },
+    ramMax:         16.0,
+    cmdHistory:     [],
+    historyIdx:     -1
+};
+
+const RAM_COSTS = { files: 2.4, notes: 1.8, mail: 3.1 };
+const BASE_RAM  = 1.2;
+
+// ================================================================
+//  TERMINAL PRINT
+// ================================================================
+function print(text, type) {
+    type = type || 'ok';
+    const d = document.createElement('div');
+    d.className = 't-line t-' + type;
+    d.textContent = text;
+    termOut.appendChild(d);
+    termOut.scrollTop = termOut.scrollHeight;
+}
+
+function printBanner() {
+    var lines = [
+        "+==============================================+",
+        "|       ASYNC_OS v8.1  //  STABLE BUILD       |",
+        "|  Unauthorized access is a federal offense.  |",
+        "+==============================================+",
+        " Type 'help' for available commands.",
+        ""
+    ];
+    lines.forEach(function(l) { print(l, 'dim'); });
+}
+
+// ================================================================
+//  HUD TELEMETRY
+// ================================================================
+function updateHUD() {
+    var ram = BASE_RAM;
+    Object.keys(RAM_COSTS).forEach(function(k) {
+        if (GS.appsRunning[k]) ram += RAM_COSTS[k];
+    });
+    var pctRam = (ram / GS.ramMax) * 100;
+    var active = Object.values(GS.appsRunning).filter(Boolean).length;
+    var cpu    = active === 0 ? 3 : Math.min(99, active * 28 + Math.floor(Math.random() * 9));
+    var temp   = 38 + active * 7;
+
+    txtRam.textContent    = ram.toFixed(1) + ' / ' + GS.ramMax + ' GB';
+    txtCpu.textContent    = cpu + '%';
+    txtTemp.textContent   = temp + 'C';
+    txtWallet.textContent = GS.credits;
+
+    barRam.style.width  = pctRam + '%';
+    barCpu.style.width  = cpu + '%';
+    barTemp.style.width = Math.min(100, (temp / 100) * 100) + '%';
+
+    barCpu.classList.toggle('hot',  cpu  > 70);
+    barTemp.classList.toggle('hot', temp > 65);
+}
+setInterval(updateHUD, 800);
+
+// ================================================================
+//  SIDEBAR REFRESH
+// ================================================================
+function refreshSidebar() {
+    ['files','notes','mail'].forEach(function(app) {
+        document.getElementById('app-' + app)
+            .classList.toggle('hidden-panel', !GS.appsRunning[app]);
+    });
+
+    // Notes
+    var notesOut = document.getElementById('notes-output');
+    notesOut.innerHTML = '';
+    if (GS.notesArray.length === 0) {
+        notesOut.innerHTML = '<div style="color:#445544">[ no entries ]</div>';
+    } else {
+        GS.notesArray.forEach(function(n, i) {
+            var d = document.createElement('div');
+            d.style.cssText = 'margin-bottom:4px;padding:3px 0;border-bottom:1px solid rgba(0,255,102,0.08)';
+            d.textContent = '[' + i + '] ' + n;
+            notesOut.appendChild(d);
+        });
     }
-    
-    updateRemote(ip);
-    renderFiles();
+
+    // Mail
+    document.getElementById('mail-output').innerHTML =
+        '<div style="color:var(--warning);font-size:11px;margin-bottom:4px">FROM: anonymous_mamba // ENCRYPTED</div>' +
+        '<div style="font-size:12px;line-height:1.5;color:#aabcaa">Three primary vector surfaces mapped. ' +
+        'Hit the IRC node first -- bistro backend intel is circulating. ' +
+        'Shadow Store has the tools we need. Stay dark.</div>' +
+        '<div style="margin-top:6px;font-size:10px;color:#446644">[MSG_ID: 0xA3F2 // UNREAD]</div>';
+}
+
+function renderRemoteFiles() {
+    var node = NET[GS.host];
+    if (!node || !node.files) return;
+    var out = document.getElementById('files-output');
+    out.innerHTML = '<div style="color:var(--info);margin-bottom:4px">Remote: ' + GS.host + '</div>';
+    Object.entries(node.files).forEach(function(pair) {
+        var fname = pair[0], fval = pair[1];
+        var d = document.createElement('div');
+        d.style.cssText = 'margin-bottom:5px;padding:4px;background:rgba(0,0,0,0.3);border-radius:2px;';
+        d.innerHTML = '<span style="color:var(--warning)">' + fname + '</span><br>' +
+                      '<span style="font-size:11px;color:#88aa88">' + fval + '</span>';
+        out.appendChild(d);
+    });
+}
+
+function newNote() {
+    var str = prompt('Enter log entry:');
+    if (str && str.trim()) {
+        GS.notesArray.push(str.trim());
+        refreshSidebar();
+        print('Note saved: ' + str.trim(), 'ok');
+    }
+}
+
+// ================================================================
+//  FIREWALL SYSTEM
+//  - connect() always succeeds regardless of firewall state
+//  - firewall blocks only file access (files open command)
+//  - crack [port] reduces firewall once enough ports are breached
+// ================================================================
+function getFirewallStatus(ip) {
+    var node = NET[ip];
+    if (!node) return null;
+    var ports    = node.ports || {};
+    var cracked  = Object.values(ports).filter(function(p) { return p.cracked; }).length;
+    var total    = Object.keys(ports).length;
+    var needed   = Math.max(1, Math.ceil(total / 2));
+    return { layers: node.firewallLayers, cracked: cracked, total: total, needed: needed };
+}
+
+function tryBreachFirewall(ip) {
+    var node = NET[ip];
+    if (!node || node.firewallLayers <= 0) return;
+    var st = getFirewallStatus(ip);
+    if (st.cracked >= st.needed) {
+        node.firewallLayers--;
+        if (node.firewallLayers <= 0) {
+            print('>>> FIREWALL BREACHED. Full filesystem access granted. <<<', 'hack');
+        } else {
+            print('Firewall layer collapsed. ' + node.firewallLayers + ' layer(s) remaining.', 'warn');
+            print('Crack more ports to break through.', 'warn');
+            // Reset port crack flags for next layer
+            Object.keys(node.ports).forEach(function(p) { node.ports[p].cracked = false; });
+        }
+        updateOverlayFirewallBanner();
+    } else {
+        print('Port cracked (' + st.cracked + '/' + st.needed + ' needed to breach firewall layer).', 'ok');
+    }
+}
+
+// ================================================================
+//  CENTER STAGE / OVERLAY
+// ================================================================
+function synchronizeLayout() {
+    promptLabel.textContent = 'root@' + GS.host + ':/#';
+    var node = NET[GS.host];
+    if (GS.host !== 'localhost' && node) {
+        document.getElementById('overlay-title').textContent   = 'PROXY // ' + (node.title || GS.host);
+        document.getElementById('overlay-ascii').textContent   = node.ascii   || '';
+        document.getElementById('overlay-content').textContent = node.content || '';
+        remoteOverlay.classList.add('visible');
+        updateOverlayFirewallBanner();
+    } else {
+        remoteOverlay.classList.remove('visible');
+        fwBanner.style.display = 'none';
+    }
+    setTimeout(resizeCanvas, 60);
+}
+
+function updateOverlayFirewallBanner() {
+    var node = NET[GS.host];
+    if (!node) return;
+    if (node.firewallLayers > 0) {
+        var st = getFirewallStatus(GS.host);
+        fwBanner.style.display = 'block';
+        fwBanner.textContent = 'FIREWALL ACTIVE: ' + node.firewallLayers + ' layer(s). ' +
+            'Crack ' + st.needed + ' port(s) to breach. (' + st.cracked + '/' + st.total + ' done) ' +
+            'File access BLOCKED.';
+    } else {
+        fwBanner.style.display = 'none';
+    }
+}
+
+// ================================================================
+//  CANVAS NETWORK MAP
+// ================================================================
+function resizeCanvas() {
+    var container = document.getElementById('canvas-container');
+    canvas.width  = container.clientWidth  || 300;
+    canvas.height = container.clientHeight || 200;
+}
+
+function drawNetwork() {
+    if (!canvas.width || !canvas.height) return;
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    var sx = canvas.width  / 420;
+    var sy = canvas.height / 300;
+
+    // Connections
+    GS.discovered.forEach(function(ip) {
+        var node = NET[ip];
+        if (!node || !node.connections) return;
+        node.connections.forEach(function(dest) {
+            var t = NET[dest];
+            if (!t) return;
+            ctx.beginPath();
+            ctx.moveTo(node.x * sx, node.y * sy);
+            ctx.lineTo(t.x * sx, t.y * sy);
+            ctx.strokeStyle = 'rgba(0,255,102,0.18)';
+            ctx.lineWidth = 1;
+            ctx.setLineDash([4, 4]);
+            ctx.stroke();
+            ctx.setLineDash([]);
+        });
+    });
+
+    // Nodes
+    GS.discovered.forEach(function(ip) {
+        var node = NET[ip];
+        if (!node) return;
+        var nx = node.x * sx;
+        var ny = node.y * sy;
+        var isActive = GS.host === ip;
+        var hasFW    = node.firewallLayers > 0;
+
+        // Glow ring
+        if (isActive) {
+            ctx.beginPath();
+            ctx.arc(nx, ny, 18, 0, Math.PI * 2);
+            ctx.strokeStyle = node.color;
+            ctx.lineWidth = 1.5;
+            ctx.globalAlpha = 0.35;
+            ctx.stroke();
+            ctx.globalAlpha = 1;
+        }
+
+        // Firewall indicator ring
+        if (hasFW) {
+            ctx.beginPath();
+            ctx.arc(nx, ny, isActive ? 13 : 11, 0, Math.PI * 2);
+            ctx.strokeStyle = '#ff3333';
+            ctx.lineWidth = 1;
+            ctx.globalAlpha = 0.6;
+            ctx.stroke();
+            ctx.globalAlpha = 1;
+        }
+
+        // Dot
+        ctx.beginPath();
+        ctx.arc(nx, ny, isActive ? 9 : 7, 0, Math.PI * 2);
+        ctx.fillStyle = node.color;
+        ctx.fill();
+
+        // Name label
+        ctx.fillStyle = isActive ? '#ffffff' : 'rgba(200,230,210,0.8)';
+        ctx.font = (isActive ? 'bold ' : '') + '11px monospace';
+        ctx.fillText(node.name, nx - 28, ny - 16);
+
+        // IP label
+        ctx.fillStyle = 'rgba(0,255,102,0.45)';
+        ctx.font = '9px monospace';
+        ctx.fillText(ip, nx - 28, ny + 23);
+
+        // Firewall label
+        if (hasFW) {
+            ctx.fillStyle = '#ff3333';
+            ctx.font = '9px monospace';
+            ctx.fillText('FW:' + node.firewallLayers, nx - 28, ny + 34);
+        }
+    });
+}
+
+canvas.addEventListener('click', function(e) {
+    var rect = canvas.getBoundingClientRect();
+    var mx   = e.clientX - rect.left;
+    var my   = e.clientY - rect.top;
+    var sx   = canvas.width  / 420;
+    var sy   = canvas.height / 300;
+    GS.discovered.forEach(function(ip) {
+        var node = NET[ip];
+        if (!node) return;
+        var dist = Math.hypot(mx - node.x * sx, my - node.y * sy);
+        if (dist <= 14) runCmd('connect ' + ip);
+    });
+});
+
+setInterval(drawNetwork, 120);
+window.addEventListener('resize', resizeCanvas);
+
+// ================================================================
+//  COMMANDS
+// ================================================================
+var CMDS = {
+
+    help: function() {
+        var list = [
+            ['help',               'Show this help'],
+            ['ls',                 'List filesystem volumes'],
+            ['scan',               'List discovered network nodes'],
+            ['connect [IP]',       'Connect to remote node (firewall does not block this)'],
+            ['disconnect',         'Return to localhost'],
+            ['ports',              'List ports on current remote host'],
+            ['crack [port]',       'Attempt to crack a port to breach firewall layers'],
+            ['files [open|close]', 'Toggle filesystem viewer (blocked by active firewall)'],
+            ['notes [open|close]', 'Toggle ops notebook'],
+            ['mail  [open|close]', 'Toggle comms spool'],
+            ['buy [A|B|C]',        'Purchase item from Shadow Store'],
+            ['clear',              'Clear terminal output']
+        ];
+        print('-- COMMAND DIRECTORY --', 'dim');
+        list.forEach(function(row) {
+            print('  ' + row[0].padEnd(22) + ' ' + row[1], 'info');
+        });
+        print('-'.repeat(42), 'dim');
+    },
+
+    ls: function() {
+        print('/sys      -- system kernel modules', 'ok');
+        print('/targets  -- acquired target profiles', 'ok');
+        print('/notes    -- operator memory registers', 'ok');
+        print('/mail     -- encrypted comms spool', 'ok');
+    },
+
+    scan: function() {
+        print('Scanning... ' + GS.discovered.length + ' node(s) in range:', 'info');
+        GS.discovered.forEach(function(ip) {
+            var n  = NET[ip];
+            var fw = (n && n.firewallLayers > 0) ? ' [FW:' + n.firewallLayers + ']' : '';
+            var active = ip === GS.host ? ' [ACTIVE]' : '';
+            print('  ' + ip.padEnd(18) + (n ? n.name : '???') + fw + active,
+                  ip === GS.host ? 'warn' : 'ok');
+        });
+    },
+
+    // -------------------------------------------------------
+    //  CONNECT -- always succeeds; firewall is advisory only
+    // -------------------------------------------------------
+    connect: function(args) {
+        var ip = args[0];
+        if (!ip)        { print('Usage: connect [IP]', 'warn'); return; }
+        if (!NET[ip])   { print('Error: host ' + ip + ' not in registry.', 'err'); return; }
+        if (!GS.discovered.includes(ip)) { print('Unknown node. Run scan first.', 'err'); return; }
+        if (ip === GS.host) { print('Already connected to ' + ip + '.', 'warn'); return; }
+
+        GS.host = ip;
+        print('Establishing proxy pipeline to ' + ip + '...', 'dim');
+        print('Connected: ' + NET[ip].name, 'ok');
+
+        // Inform about firewall -- but do NOT block connection
+        var node = NET[ip];
+        if (node.firewallLayers > 0) {
+            print('FIREWALL ACTIVE: ' + node.firewallLayers + ' layer(s) blocking file access.', 'warn');
+            print("  Run 'ports' to see attack surface, then 'crack [port]' to breach.", 'warn');
+        } else {
+            print('No active firewall. Full filesystem access available.', 'ok');
+        }
+        synchronizeLayout();
+    },
+
+    disconnect: function() {
+        if (GS.host === 'localhost') { print('Already at localhost.', 'warn'); return; }
+        var prev = GS.host;
+        GS.host = 'localhost';
+        print('Pipeline to ' + prev + ' terminated.', 'ok');
+        synchronizeLayout();
+    },
+
+    // -------------------------------------------------------
+    //  PORTS -- list port attack surface on current host
+    // -------------------------------------------------------
+    ports: function() {
+        if (GS.host === 'localhost') { print('localhost has no remote port table.', 'warn'); return; }
+        var node = NET[GS.host];
+        if (!node || !node.ports || Object.keys(node.ports).length === 0) {
+            print('No port data for this host.', 'warn'); return;
+        }
+        print('Port scan: ' + GS.host, 'info');
+        Object.entries(node.ports).forEach(function(pair) {
+            var port = pair[0], data = pair[1];
+            var status = data.cracked ? '[CRACKED]' : '[LOCKED] ';
+            var col    = data.cracked ? 'ok' : 'err';
+            print('  ' + String(port).padEnd(6) + ' ' + data.service.padEnd(10) + ' ' + status, col);
+        });
+        var st = getFirewallStatus(GS.host);
+        if (node.firewallLayers > 0) {
+            print('  Firewall: ' + node.firewallLayers + ' layer(s) -- need ' + st.needed +
+                  ' crack(s) to breach. (' + st.cracked + '/' + st.total + ' done)', 'warn');
+        } else {
+            print('  Firewall: NONE -- full access.', 'ok');
+        }
+    },
+
+    // -------------------------------------------------------
+    //  CRACK -- breach a port on the current host
+    //           enough cracks collapse a firewall layer
+    // -------------------------------------------------------
+    crack: function(args) {
+        if (GS.host === 'localhost') { print('Not connected to a remote node.', 'err'); return; }
+        var port = parseInt(args[0]);
+        if (!port) { print('Usage: crack [port]', 'warn'); return; }
+        var node = NET[GS.host];
+        if (!node || !node.ports)     { print('No port data on this host.', 'err'); return; }
+        if (!node.ports[port])        { print('Port ' + port + ' not found. Run "ports" to list targets.', 'err'); return; }
+        if (node.ports[port].cracked) { print('Port ' + port + ' already breached.', 'warn'); return; }
+
+        print('Initiating crack on port ' + port + ' (' + node.ports[port].service + ')...', 'dim');
+        print('[##########] Bypassing auth handshake...', 'dim');
+        node.ports[port].cracked = true;
+        print('Port ' + port + ' breached.', 'ok');
+        tryBreachFirewall(GS.host);
+        updateOverlayFirewallBanner();
+    },
+
+    // -------------------------------------------------------
+    //  FILES -- blocked by active firewall; shows remote FS
+    //           if firewall is clear
+    // -------------------------------------------------------
+    files: function(args) {
+        var sub = args[0];
+        if (sub !== 'open' && sub !== 'close') { print('Usage: files [open|close]', 'warn'); return; }
+        if (sub === 'open') {
+            if (GS.host !== 'localhost') {
+                var node = NET[GS.host];
+                if (node && node.firewallLayers > 0) {
+                    print('Filesystem access DENIED -- firewall active on ' + GS.host + '.', 'err');
+                    print("Run 'ports' then 'crack [port]' to breach the firewall.", 'warn');
+                    return;
+                }
+                // Firewall clear -- mount remote FS
+                renderRemoteFiles();
+            }
+            GS.appsRunning.files = true;
+            print('Filesystem viewer: ONLINE', 'ok');
+        } else {
+            // Restore local file listing when closing
+            document.getElementById('files-output').innerHTML =
+                '<div>/sys</div><div>/targets</div><div>local_node.conf</div><div>shadow_tickets.db</div>';
+            GS.appsRunning.files = false;
+            print('Filesystem viewer: closed.', 'dim');
+        }
+        refreshSidebar(); updateHUD();
+    },
+
+    notes: function(args) {
+        var sub = args[0];
+        if (sub !== 'open' && sub !== 'close') { print('Usage: notes [open|close]', 'warn'); return; }
+        GS.appsRunning.notes = sub === 'open';
+        print(sub === 'open' ? 'Ops Notebook: ONLINE' : 'Ops Notebook: closed.', sub === 'open' ? 'ok' : 'dim');
+        refreshSidebar(); updateHUD();
+    },
+
+    mail: function(args) {
+        var sub = args[0];
+        if (sub !== 'open' && sub !== 'close') { print('Usage: mail [open|close]', 'warn'); return; }
+        GS.appsRunning.mail = sub === 'open';
+        print(sub === 'open' ? 'Comms Spool: ONLINE' : 'Comms Spool: closed.', sub === 'open' ? 'ok' : 'dim');
+        refreshSidebar(); updateHUD();
+    },
+
+    buy: function(args) {
+        if (GS.host !== '74.22.105.4') { print('Error: not connected to Shadow Store.', 'err'); return; }
+        var catalog = {
+            A: { name: 'Kernel exploit payload',         cost: 45 },
+            B: { name: 'Encrypted relay proxy tickets',  cost: 20 },
+            C: { name: 'Shadow ticket forge kit',        cost: 80 }
+        };
+        var key  = (args[0] || '').toUpperCase();
+        var item = catalog[key];
+        if (!item) { print('Usage: buy [A|B|C]', 'warn'); return; }
+        if (GS.credits < item.cost) {
+            print('Insufficient credits. Need ' + item.cost + ' CR, have ' + GS.credits + ' CR.', 'err'); return;
+        }
+        GS.credits -= item.cost;
+        print('Purchase confirmed: ' + item.name + ' (-' + item.cost + ' CR)', 'ok');
+        print('Remaining balance: ' + GS.credits + ' CR', 'dim');
+        updateHUD();
+    },
+
+    clear: function() { termOut.innerHTML = ''; }
+};
+
+// ================================================================
+//  INPUT HANDLER
+// ================================================================
+function runCmd(raw) {
+    var trimmed = raw.trim();
+    if (!trimmed) return;
+
+    var echo = document.createElement('div');
+    echo.className = 't-line t-cmd';
+    echo.textContent = promptLabel.textContent + ' ' + trimmed;
+    termOut.appendChild(echo);
+    termOut.scrollTop = termOut.scrollHeight;
+
+    GS.cmdHistory.unshift(trimmed);
+    if (GS.cmdHistory.length > 50) GS.cmdHistory.pop();
+    GS.historyIdx = -1;
+
+    var parts = trimmed.split(/\s+/);
+    var cmd   = CMDS[parts[0]];
+    if (cmd) {
+        cmd(parts.slice(1));
+    } else {
+        print("Command not found: '" + parts[0] + "'. Type 'help' for list.", 'err');
+    }
+
+    cmdInput.value = '';
+}
+
+cmdInput.addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') {
+        runCmd(cmdInput.value);
+    } else if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        GS.historyIdx = Math.min(GS.historyIdx + 1, GS.cmdHistory.length - 1);
+        if (GS.cmdHistory[GS.historyIdx] !== undefined) cmdInput.value = GS.cmdHistory[GS.historyIdx];
+    } else if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        GS.historyIdx = Math.max(GS.historyIdx - 1, -1);
+        cmdInput.value = GS.historyIdx === -1 ? '' : GS.cmdHistory[GS.historyIdx];
+    }
+});
+
+document.getElementById('terminal-panel').addEventListener('click', function() { cmdInput.focus(); });
+
+// ================================================================
+//  MOBILE TOGGLES
+// ================================================================
+function togglePanel(side) {
+    if (side === 'left') {
+        leftSidebar.classList.toggle('active');
+        centerStage.classList.remove('active');
+    } else {
+        centerStage.classList.toggle('active');
+        leftSidebar.classList.remove('active');
+        setTimeout(resizeCanvas, 320);
+    }
+}
+
+// ================================================================
+//  BOOT
+// ================================================================
+setTimeout(function() {
+    resizeCanvas();
+    synchronizeLayout();
+    refreshSidebar();
     updateHUD();
-  }},
-
-CHANGES NEEDED IN crackPort() FUNCTION:
-
-REPLACE THIS:
-  function crackPort(cmd,port,targetIp){
-    const ip=targetIp||GS.host;
-    if(targetIp&&ip!==GS.host){
-      tprint('Must be connected to target to crack ports. Use: connect '+ip,'twrn'); return;  // <-- GOOD, KEEP THIS
-    }
-    const node=NET[ip]; if(!node){tprint('Not connected to a node.','terr');return;}
-    // ...
-
-KEEP THAT, BUT ADD firewall check:
-    // Check if firewall is blocking this port
-    if(node.firewallLayers>0 && !node.ports[port].cracked){
-      tprint(`[FIREWALL] ${node.firewallLayers} layer(s) blocking port ${port}. Crack firewall first.`,'twrn');
-      // Could optionally allow starting firewall crack here
-      return;
-    }
-
-ADD NEW: Firewall cracking logic
-
-  function crackFirewall(targetIp){
-    const ip=targetIp||GS.host;
-    const node=NET[ip];
-    if(!node){tprint('Not connected.','terr');return;}
-    if(node.firewallLayers===0){tprint('No firewall active.','tok');return;}
-    
-    const cracked=node.ports ? Object.values(node.ports).filter(p=>p.cracked).length : 0;
-    const total=node.ports ? Object.keys(node.ports).length : 0;
-    const needed=Math.max(1,Math.ceil(total/2));
-    
-    if(cracked<needed){
-      tprint(`Crack ${needed} ports to break through firewall. Currently: ${cracked}/${total}.`,'twrn');
-      return;
-    }
-    
-    // Once enough ports cracked, firewall is breached
-    node.firewallLayers=0;
-    tprint('✓ Firewall breached! Full access granted.','thack');
-    updateRemote(ip);
-  }
-
-KEY INSIGHT:
-- Connection is just setting GS.host
-- Firewall blocks FILE ACCESS, not connection
-- User sees "connected but can't access files" if firewall active
-- Cracking ports eventually disables firewall
-- Once firewall disabled, full file system access
+    printBanner();
+}, 100);
+</script>
+</body>
+</html>
