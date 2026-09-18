@@ -13,11 +13,40 @@ export const history: Command = {
 };
 
 export const top: Command = {
-  name: 'top', usage: 'top', help: 'show RAM usage',
+  name: 'top', usage: 'top', help: 'show RAM/CPU usage and running processes',
   run(shell) {
-    const { used, total } = shell.state.ram;
+    const used = shell.procs.ramUsed();
+    const total = shell.state.ram.total;
     shell.print(`RAM  ${used.toFixed(1)}G / ${total.toFixed(1)}G`, 'out');
+    shell.print(`CPU  ${Math.round(shell.procs.cpuUsed())}%`, 'out');
     shell.print(`TRACE ${Math.round(shell.state.trace)}%${shell.state.traceActive ? ' [ACTIVE]' : ''}`, shell.state.trace > 60 ? 'warn' : 'out');
+    if (shell.procs.list().length) {
+      shell.print('', 'dim');
+      ps.run(shell, { cmd: 'ps', args: [], flags: new Set() });
+    }
+  },
+};
+
+export const ps: Command = {
+  name: 'ps', usage: 'ps', help: 'list running processes (apps + tools)',
+  run(shell) {
+    const procs = shell.procs.list();
+    if (!procs.length) { shell.print('no running processes', 'dim'); return; }
+    shell.print('PID   NAME        RAM    CPU   TARGET', 'ok');
+    for (const p of procs) {
+      const target = p.target ?? p.appId ?? '-';
+      shell.print(`${String(p.pid).padEnd(6)}${p.name.padEnd(12)}${(p.ram.toFixed(1) + 'G').padEnd(7)}${(p.cpu + '%').padEnd(6)}${target}`, 'out');
+    }
+  },
+};
+
+export const killCmd: Command = {
+  name: 'kill', usage: 'kill <pid>', help: 'terminate a running process, freeing its RAM/CPU',
+  run(shell, p) {
+    const pid = Number(p.args[0]);
+    if (!pid) { shell.print('usage: kill <pid>', 'warn'); return; }
+    if (!shell.procs.kill(pid)) { shell.print(`kill: no such process: ${pid}`, 'err'); return; }
+    shell.print(`process ${pid} terminated.`, 'ok');
   },
 };
 

@@ -1,14 +1,15 @@
 // Player/session state. Persists to localStorage for now; swap `save`/`load`
 // for a fetch() to the Worker API once auth + D1 are wired up.
+//
+// Running processes (apps, in-flight exploit tools) are NOT here — see
+// core/process.ts. They're runtime-only and don't survive a reload.
 
-export interface ProcessInfo {
-  pid: number;
-  name: string;
-  ram: number;
-  target: string;
-  startedAt: number;
-  durationMs: number;
-  onComplete: () => void;
+export interface MailMessage {
+  id: string;
+  from: string;
+  subj: string;
+  body: string;
+  read: boolean;
 }
 
 export interface GameState {
@@ -21,9 +22,11 @@ export interface GameState {
   credits: number;
   trace: number;                 // 0..100, current host
   traceActive: boolean;
-  ram: { total: number; used: number };
+  ram: { total: number };        // used is derived live from the process table
   history: string[];
   questFlags: Record<string, boolean>;
+  mail: MailMessage[];
+  notes: string[];
 }
 
 export function newGameState(): GameState {
@@ -37,9 +40,17 @@ export function newGameState(): GameState {
     credits: 500,
     trace: 0,
     traceActive: false,
-    ram: { total: 8, used: 0 },
+    ram: { total: 8 },
     history: [],
     questFlags: {},
+    mail: [
+      {
+        id: 'boot', from: 'sys@async.os', subj: 'System boot',
+        body: 'ASYNC_OS initialized.\n\nType `apps` to see what you can run, and remember — every open app holds RAM until you close it.',
+        read: false,
+      },
+    ],
+    notes: [],
   };
 }
 

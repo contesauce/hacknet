@@ -2,6 +2,7 @@ import type { GameState } from '../core/state';
 import { saveLocal } from '../core/state';
 import { NetworkGraph } from '../core/network';
 import { VirtualFs } from '../core/fs';
+import { ProcessManager } from '../core/process';
 import type { ParsedCommand } from './parser';
 import { parse } from './parser';
 
@@ -20,11 +21,20 @@ export class Shell {
   onStateChange: () => void = () => {};
   busy = false; // true while a timed command (nmap/hydra) is running
 
+  procs = new ProcessManager();
+  /** Set by a command that opens an app; the UI consumes it once to switch tabs. */
+  pendingFocusApp: string | null = null;
+
   state: GameState;
   net: NetworkGraph;
   constructor(state: GameState, net: NetworkGraph) {
     this.state = state;
     this.net = net;
+    this.procs.onChange = () => this.onStateChange();
+  }
+
+  ramFree(): number {
+    return Math.max(0, this.state.ram.total - this.procs.ramUsed());
   }
 
   register(cmd: Command) {

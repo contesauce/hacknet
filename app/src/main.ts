@@ -5,6 +5,10 @@ import { ALL_HOSTS } from './data/world';
 import { Shell } from './terminal/shell';
 import { registerAllCommands } from './terminal/commands/index';
 import { TerminalUI } from './terminal/terminal-ui';
+import { registerAllApps } from './apps/index';
+import { SidePanel } from './ui/side-panel';
+
+registerAllApps();
 
 const net = new NetworkGraph();
 ALL_HOSTS.forEach(h => net.add(h));
@@ -24,41 +28,39 @@ app.innerHTML = `
         <div class="hud-bar"><div class="hud-bar-fill" id="hud-ram"></div></div>
       </div>
       <div>
+        <div class="hud-row"><span class="hud-label">CPU</span><span id="hud-cpu-val"></span></div>
+        <div class="hud-bar"><div class="hud-bar-fill" id="hud-cpu"></div></div>
+      </div>
+      <div>
         <div class="hud-row"><span class="hud-label">Trace</span><span id="hud-trace-val"></span></div>
         <div class="hud-bar"><div class="hud-bar-fill" id="hud-trace"></div></div>
       </div>
       <div class="hud-row"><span class="hud-label">Credits</span><span id="hud-credits"></span></div>
     </div>
-    <div class="panel" style="flex:1;min-height:0">
-      <div class="panel-header">Known Hosts</div>
-      <div id="hosts-list"></div>
-    </div>
+    <div class="panel" id="side-panel-root" style="flex:1;min-height:0"></div>
   </div>
   <div class="panel" id="main"></div>
 `;
 
 const termUI = new TerminalUI(shell, document.getElementById('main')!);
-
-function renderHosts() {
-  const el = document.getElementById('hosts-list')!;
-  el.innerHTML = '';
-  for (const id of state.discovered) {
-    const h = net.get(id);
-    if (!h) continue;
-    const div = document.createElement('div');
-    div.className = 'host-item' + (id === state.host ? ' current' : '');
-    div.innerHTML = `<div class="name">${h.hostname}</div><div class="ip">${id}${h.admin ? ' · root' : ''}</div>`;
-    el.appendChild(div);
-  }
-}
+const sidePanel = new SidePanel(document.getElementById('side-panel-root')!, shell, net);
 
 function renderHud() {
   document.getElementById('hud-host')!.textContent = shell.hostname();
-  document.getElementById('hud-ram-val')!.textContent = `${state.ram.used.toFixed(1)}G / ${state.ram.total.toFixed(1)}G`;
-  const ramPct = Math.min(100, (state.ram.used / state.ram.total) * 100);
+
+  const ramUsed = shell.procs.ramUsed();
+  const ramTotal = state.ram.total;
+  document.getElementById('hud-ram-val')!.textContent = `${ramUsed.toFixed(1)}G / ${ramTotal.toFixed(1)}G`;
+  const ramPct = Math.min(100, (ramUsed / ramTotal) * 100);
   const ramFill = document.getElementById('hud-ram')!;
   ramFill.style.width = ramPct + '%';
   ramFill.className = 'hud-bar-fill' + (ramPct > 90 ? ' err' : ramPct > 70 ? ' warn' : '');
+
+  const cpuUsed = shell.procs.cpuUsed();
+  document.getElementById('hud-cpu-val')!.textContent = `${Math.round(cpuUsed)}%`;
+  const cpuFill = document.getElementById('hud-cpu')!;
+  cpuFill.style.width = Math.min(100, cpuUsed) + '%';
+  cpuFill.className = 'hud-bar-fill' + (cpuUsed > 90 ? ' err' : cpuUsed > 70 ? ' warn' : '');
 
   document.getElementById('hud-trace-val')!.textContent = `${Math.round(state.trace)}%`;
   const traceFill = document.getElementById('hud-trace')!;
@@ -68,8 +70,7 @@ function renderHud() {
   document.getElementById('hud-credits')!.textContent = `${state.credits}cr`;
 }
 
-shell.onStateChange = () => { renderHosts(); renderHud(); };
-renderHosts();
+shell.onStateChange = () => { sidePanel.sync(); renderHud(); };
 renderHud();
 
 // Trace decays slowly while not actively cracking something.
@@ -90,4 +91,4 @@ setInterval(() => {
   renderHud();
 }, 1000);
 
-shell.print('ASYNC_OS — type `help` to get started. Try: nmap, then ssh <host>.', 'ok');
+shell.print("ASYNC_OS — type `help` to get started. Try: nmap, then ssh <host>. Type `apps` to see what's launchable.", 'ok');
