@@ -38,6 +38,12 @@ async function handleCallback(url: URL, request: Request, env: Env): Promise<Res
   if (!code || !state || state !== cookies[STATE_COOKIE]) {
     return new Response('invalid OAuth state', { status: 400 });
   }
+  if (!env.GOOGLE_CLIENT_SECRET) {
+    return new Response('sign-in failed: GOOGLE_CLIENT_SECRET is not configured on this Worker', { status: 500 });
+  }
+  if (!env.SESSION_SECRET) {
+    return new Response('sign-in failed: SESSION_SECRET is not configured on this Worker', { status: 500 });
+  }
 
   try {
     const idToken = await exchangeCodeForIdToken(code, env.GOOGLE_CLIENT_ID, env.GOOGLE_CLIENT_SECRET, redirectUriFor(url));
