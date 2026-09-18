@@ -1,9 +1,15 @@
 name = "hacknet"
+main = "worker/index.ts"
 compatibility_date = "2024-09-23"
 
-# Static-only for now: this deploys the built game (dist/) with no server
-# code. Once Google OAuth + D1 saves are wired up, this gets a `main`
-# entry point (a small Worker) that handles /api/* and falls back to
-# serving these assets for everything else.
+# Static assets (the built game) are served by the Worker's fallback path
+# in worker/index.ts for any request that isn't /api/auth/*.
 [assets]
 directory = "./dist"
+binding = "ASSETS"
+
+# GOOGLE_CLIENT_ID is not secret — it's fine to commit. GOOGLE_CLIENT_SECRET
+# and SESSION_SECRET are NOT here; they're set as encrypted secrets via
+# `wrangler secret put` (or the dashboard), never committed.
+[vars]
+GOOGLE_CLIENT_ID = "570039485030-tnst6fkmmdam2sarmgnck0bc6harfoda.apps.googleusercontent.com"
