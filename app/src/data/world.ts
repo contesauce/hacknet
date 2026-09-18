@@ -42,7 +42,7 @@ export const SANDBOX: HostNode = {
   kind: 'server',
   firewall: 1,
   traceSpeed: 60,
-  connections: ['localhost', '10.0.0.5'],
+  connections: ['localhost', '10.0.0.5', '172.20.0.1'],
   notes: 'Test box. Low security. Good place to learn the ropes.',
   fs: dir('/', {
     home: dir('home', {
@@ -84,4 +84,22 @@ export const KRONOS: HostNode = {
   ports: [makePort('ssh'), makePort('ftp'), makePort('http'), makePort('smtp')],
 };
 
-export const ALL_HOSTS: HostNode[] = [LOCALHOST, SANDBOX, KRONOS];
+export const MARKET: HostNode = {
+  id: '172.20.0.1',
+  hostname: 'market.shadow.net',
+  x: 0.45, y: 0.65,
+  kind: 'server',
+  firewall: 0,
+  traceSpeed: 90,
+  store: 'market',
+  connections: ['192.168.1.10'],
+  notes: 'Open market — no login required. Type `shop` to browse.',
+  fs: dir('/', {
+    home: dir('home', {
+      'catalog.txt': file('catalog.txt', 'Open market. All runners welcome.\nType: shop'),
+    }),
+  }),
+  ports: [],
+};
+
+export const ALL_HOSTS: HostNode[] = [LOCALHOST, SANDBOX, KRONOS, MARKET];

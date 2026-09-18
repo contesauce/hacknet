@@ -30,7 +30,7 @@ export function appLauncherCommands(): Command[] {
         shell.print(`${def.id}: not enough RAM (${def.ram}G needed, ${shell.ramFree().toFixed(1)}G free)`, 'err');
         return;
       }
-      const proc = shell.procs.spawn({ kind: 'app', name: def.name, ram: def.ram, cpu: def.cpu, appId: def.id });
+      const proc = shell.procs.spawn({ kind: 'app', name: def.name, ram: def.ram, cpu: def.cpu * shell.state.cpuMult, appId: def.id });
       shell.pendingFocusApp = def.id;
       shell.print(`${def.name} launched (pid ${proc.pid}).`, 'ok');
     },

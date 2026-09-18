@@ -23,6 +23,7 @@ export interface HostNode {
   admin?: boolean;         // player has root
   faction?: string;
   notes?: string;          // flavor text shown on `ssh` banner
+  store?: string;          // id of a StoreDef (see core/store.ts) sold here
 }
 
 export const PORT_DEFAULT: Record<PortType, number> = {

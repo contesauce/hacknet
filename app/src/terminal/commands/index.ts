@@ -4,6 +4,7 @@ import { whoami, hostnameCmd, ifconfig, nmap, ssh, exitCmd } from './net-command
 import { hydra, decrypt, scp } from './exploit-commands';
 import { clear, history, top, ps, killCmd, help, man } from './sys-commands';
 import { appsCmd, appLauncherCommands } from './app-commands';
+import { shop, buy } from './store-commands';
 
 export function registerAllCommands(shell: Shell) {
   [
@@ -12,5 +13,6 @@ export function registerAllCommands(shell: Shell) {
     hydra, decrypt, scp,
     clear, history, top, ps, killCmd, help, man,
     appsCmd, ...appLauncherCommands(),
+    shop, buy,
   ].forEach(c => shell.register(c));
 }

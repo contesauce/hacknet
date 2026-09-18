@@ -23,6 +23,8 @@ export interface GameState {
   trace: number;                 // 0..100, current host
   traceActive: boolean;
   ram: { total: number };        // used is derived live from the process table
+  cpuMult: number;                // multiplies every process's CPU cost; upgrades lower it
+  crackSpeedMult: number;         // multiplies hydra's crack duration; upgrades lower it
   history: string[];
   questFlags: Record<string, boolean>;
   mail: MailMessage[];
@@ -41,6 +43,8 @@ export function newGameState(): GameState {
     trace: 0,
     traceActive: false,
     ram: { total: 8 },
+    cpuMult: 1,
+    crackSpeedMult: 1,
     history: [],
     questFlags: {},
     mail: [
@@ -71,11 +75,16 @@ export function loadLocal(): GameState | null {
   if (!raw) return null;
   try {
     const parsed = JSON.parse(raw);
+    // Merge onto a fresh default state so a save from before a field existed
+    // (we've added several across phases already) doesn't crash on load —
+    // it just gets that field's default instead of `undefined`.
+    const base = newGameState();
     return {
+      ...base,
       ...parsed,
-      discovered: new Set(parsed.discovered),
-      rootedHosts: new Set(parsed.rootedHosts),
-      toolsInstalled: new Set(parsed.toolsInstalled),
+      discovered: new Set(parsed.discovered ?? base.discovered),
+      rootedHosts: new Set(parsed.rootedHosts ?? base.rootedHosts),
+      toolsInstalled: new Set(parsed.toolsInstalled ?? base.toolsInstalled),
     };
   } catch {
     return null;
