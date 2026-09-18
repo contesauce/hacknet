@@ -12,4 +12,4 @@ binding = "ASSETS"
 # and SESSION_SECRET are NOT here; they're set as encrypted secrets via
 # `wrangler secret put` (or the dashboard), never committed.
 [vars]
-GOOGLE_CLIENT_ID = "REPLACE_ME"
+GOOGLE_CLIENT_ID = "570039485030-tnst6fkmmdam2sarmgnck0bc6harfoda.apps.googleusercontent.com"
