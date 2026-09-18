@@ -13,6 +13,7 @@ export interface StoreDef {
   id: string;
   name: string;
   items: StoreItem[];
+  requiresFaction?: string; // faction id; only members may shop/buy here
 }
 
 const registry = new Map<string, StoreDef>();

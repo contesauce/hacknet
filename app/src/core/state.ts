@@ -30,6 +30,8 @@ export interface GameState {
   activeQuests: string[];
   completedQuests: string[];
   vesselShards: string[];
+  faction: string | null;
+  factionRep: Record<string, number>;
   mail: MailMessage[];
   notes: string[];
 }
@@ -53,6 +55,8 @@ export function newGameState(): GameState {
     activeQuests: ['q1_boot', 'q1_sandbox', 'q1_market'],
     completedQuests: [],
     vesselShards: [],
+    faction: null,
+    factionRep: {},
     mail: [
       {
         id: 'boot', from: 'sys@async.os', subj: 'System boot',

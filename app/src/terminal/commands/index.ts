@@ -5,6 +5,7 @@ import { hydra, decrypt, scp } from './exploit-commands';
 import { clear, history, top, ps, killCmd, help, man } from './sys-commands';
 import { appsCmd, appLauncherCommands } from './app-commands';
 import { shop, buy } from './store-commands';
+import { join } from './faction-commands';
 
 export function registerAllCommands(shell: Shell) {
   [
@@ -13,6 +14,6 @@ export function registerAllCommands(shell: Shell) {
     hydra, decrypt, scp,
     clear, history, top, ps, killCmd, help, man,
     appsCmd, ...appLauncherCommands(),
-    shop, buy,
+    shop, buy, join,
   ].forEach(c => shell.register(c));
 }

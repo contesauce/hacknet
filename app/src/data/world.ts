@@ -63,7 +63,7 @@ export const KRONOS: HostNode = {
   kind: 'corp',
   firewall: 3,
   traceSpeed: 35,
-  connections: ['192.168.1.10'],
+  connections: ['192.168.1.10', '10.11.0.99', '10.44.0.1'],
   faction: 'kronos',
   notes: 'KRONOS Systems — Infrastructure Solutions. Authorized access only.',
   fs: dir('/', {
@@ -97,7 +97,7 @@ export const MARKET: HostNode = {
   firewall: 0,
   traceSpeed: 90,
   store: 'market',
-  connections: ['192.168.1.10'],
+  connections: ['192.168.1.10', '10.99.0.1'],
   notes: 'Open market — no login required. Type `shop` to browse.',
   fs: dir('/', {
     home: dir('home', {
@@ -131,4 +131,61 @@ export const AXIOM_NODE: HostNode = {
   ports: [makePort('ssh'), makePort('ftp'), makePort('http'), makePort('smtp'), makePort('sql')],
 };
 
-export const ALL_HOSTS: HostNode[] = [LOCALHOST, SANDBOX, KRONOS, MARKET, AXIOM_NODE];
+export const WRAITH_DEN: HostNode = {
+  id: '10.11.0.99',
+  hostname: 'den.wraith.net',
+  x: 0.82, y: 0.3,
+  kind: 'server',
+  firewall: 2,
+  traceSpeed: 45,
+  faction: 'wraith',
+  connections: ['10.0.0.5'],
+  fs: dir('/', {
+    home: dir('home', {
+      'welcome.txt': file('welcome.txt',
+        'You found us. Not many do.\n\nType: join wraith — if you\'re serious. We don\'t take passengers.\n\n— WRAITH COLLECTIVE'),
+    }),
+  }),
+  ports: [makePort('ssh'), makePort('sql')],
+};
+
+export const BASTION_FORTRESS: HostNode = {
+  id: '10.44.0.1',
+  hostname: 'fortress.bastion.net',
+  x: 0.88, y: 0.2,
+  kind: 'server',
+  firewall: 3,
+  traceSpeed: 80,
+  faction: 'bastion',
+  connections: ['10.0.0.5'],
+  fs: dir('/', {
+    home: dir('home', {
+      'welcome.txt': file('welcome.txt',
+        'BASTION ORDER.\nDefend. Endure. Prevail.\n\nYou found us through patience, not speed. That\'s our kind of runner.\n\nType: join bastion'),
+    }),
+  }),
+  ports: [makePort('ssh'), makePort('sql')],
+};
+
+export const BROKER_EXCHANGE: HostNode = {
+  id: '10.99.0.1',
+  hostname: 'exchange.broker.net',
+  x: 0.7, y: 0.78,
+  kind: 'corp',
+  firewall: 2,
+  traceSpeed: 55,
+  faction: 'broker',
+  connections: ['172.20.0.1'],
+  fs: dir('/', {
+    home: dir('home', {
+      'welcome.txt': file('welcome.txt',
+        'You found us without being invited.\nThat\'s either impressive or a red flag.\n\nType: join broker\n\nWe\'ll be watching either way.\n\n— THE SYNDICATE'),
+    }),
+  }),
+  ports: [makePort('ssh'), makePort('http'), makePort('smtp')],
+};
+
+export const ALL_HOSTS: HostNode[] = [
+  LOCALHOST, SANDBOX, KRONOS, MARKET, AXIOM_NODE,
+  WRAITH_DEN, BASTION_FORTRESS, BROKER_EXCHANGE,
+];
