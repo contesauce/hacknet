@@ -3,6 +3,7 @@ import { saveLocal } from '../core/state';
 import { NetworkGraph } from '../core/network';
 import { VirtualFs } from '../core/fs';
 import { ProcessManager } from '../core/process';
+import { getQuest, allQuests } from '../core/quests';
 import type { ParsedCommand } from './parser';
 import { parse } from './parser';
 
@@ -88,7 +89,41 @@ export class Shell {
     } catch (e) {
       this.print(`internal error: ${(e as Error).message}`, 'err');
     }
+    this.checkQuests();
     this.persist();
+  }
+
+  /** Evaluate active quests' completion predicates, grant rewards, and unlock follow-ups. */
+  checkQuests() {
+    for (const id of [...this.state.activeQuests]) {
+      const q = getQuest(id);
+      if (!q) continue;
+      if (!q.complete(this)) continue;
+
+      this.state.activeQuests = this.state.activeQuests.filter(x => x !== id);
+      this.state.completedQuests.push(id);
+      this.print(`[QUEST COMPLETE] ${q.name}`, 'ok');
+
+      if (q.reward.credits) {
+        this.state.credits += q.reward.credits;
+        this.print(`  +${q.reward.credits}cr`, 'dim');
+      }
+      if (q.reward.revealHost && !this.state.discovered.has(q.reward.revealHost)) {
+        this.state.discovered.add(q.reward.revealHost);
+        const h = this.net.get(q.reward.revealHost);
+        this.print(`  [LEAD] new host discovered: ${q.reward.revealHost}${h ? ' — ' + h.hostname : ''}`, 'warn');
+      }
+      if (q.reward.mail) {
+        this.state.mail.push({ id: `q_${id}`, ...q.reward.mail, read: false });
+        this.print(`  [NEW MAIL] ${q.reward.mail.from} — ${q.reward.mail.subj}`, 'warn');
+      }
+
+      for (const next of allQuests()) {
+        if (next.after === id && !this.state.activeQuests.includes(next.id) && !this.state.completedQuests.includes(next.id)) {
+          this.state.activeQuests.push(next.id);
+        }
+      }
+    }
   }
 
   /** Run a fake-latency operation with a busy lock, so the UI can't be spammed mid-crack. */

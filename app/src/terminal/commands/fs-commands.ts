@@ -1,5 +1,6 @@
 import { isDir, VirtualFs } from '../../core/fs';
 import type { Command, Shell } from '../shell';
+import { collectShard } from '../../core/vessel';
 
 export const pwd: Command = {
   name: 'pwd', usage: 'pwd', help: 'print current working directory',
@@ -37,6 +38,7 @@ export const ls: Command = {
       const badges: string[] = [];
       if (e.locked && !isAdmin) badges.push('LOCK');
       if (e.encrypted) badges.push('ENC');
+      if (e.vesselShard) badges.push('SHARD');
       if (e.tag) badges.push(e.tag);
       const suffix = badges.length && p.flags.has('l') ? `  [${badges.join(',')}]` : '';
       shell.print(`${e.name}${suffix}`, badges.includes('LOCK') ? 'dim' : 'out');
@@ -57,6 +59,7 @@ export const cat: Command = {
     if (f.encrypted) { shell.print(`cat: ${p.args[0]} is encrypted — use: decrypt ${p.args[0]} <password>`, 'warn'); return; }
     shell.print(f.content, 'out');
     if (f.onRead) shell.state.questFlags[f.onRead] = true;
+    if (f.vesselShard) collectShard(shell, f.vesselShard);
   },
 };
 

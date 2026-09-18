@@ -7,10 +7,12 @@ import { registerAllCommands } from './terminal/commands/index';
 import { TerminalUI } from './terminal/terminal-ui';
 import { registerAllApps } from './apps/index';
 import { registerAllStores } from './data/stores';
+import { registerAllQuests } from './data/quests';
 import { SidePanel } from './ui/side-panel';
 
 registerAllApps();
 registerAllStores();
+registerAllQuests();
 
 const net = new NetworkGraph();
 ALL_HOSTS.forEach(h => net.add(h));

@@ -17,7 +17,7 @@ export interface GameState {
   cwd: string[];                 // cwd on the currently connected host
   path: string[];                // chain of hosts hopped through, for `exit` to unwind
   discovered: Set<string>;
-  rootedHosts: Set<string>;
+  rootedHosts: Set<string>;      // host ids where root has been obtained via hydra
   toolsInstalled: Set<string>;   // 'hydra' | 'scp' | 'decrypt' | ...
   credits: number;
   trace: number;                 // 0..100, current host
@@ -27,6 +27,9 @@ export interface GameState {
   crackSpeedMult: number;         // multiplies hydra's crack duration; upgrades lower it
   history: string[];
   questFlags: Record<string, boolean>;
+  activeQuests: string[];
+  completedQuests: string[];
+  vesselShards: string[];
   mail: MailMessage[];
   notes: string[];
 }
@@ -47,6 +50,9 @@ export function newGameState(): GameState {
     crackSpeedMult: 1,
     history: [],
     questFlags: {},
+    activeQuests: ['q1_boot', 'q1_sandbox', 'q1_market'],
+    completedQuests: [],
+    vesselShards: [],
     mail: [
       {
         id: 'boot', from: 'sys@async.os', subj: 'System boot',

@@ -70,9 +70,14 @@ export const KRONOS: HostNode = {
     home: dir('home', {
       admin: dir('admin', {
         'vessel_project.enc': file('vessel_project.enc',
-          'PROJECT VESSEL — STATUS REPORT\nFragment assembly: 4/7 shards recovered.',
-          { locked: true, encrypted: true, password: 'AxI0M_7734' }),
+          'PROJECT VESSEL — STATUS REPORT\nFragment assembly: 4/7 shards recovered.\nRemaining shards distributed across dark-net relay nodes.\nWarning: AXIOM\'s failsafe detected — unauthorized assembly triggers self-destruct.',
+          { locked: true, encrypted: true, password: 'AxI0M_7734', onRead: 'kronos_vessel_doc' }),
       }),
+    }),
+    archive: dir('archive', {
+      'shard_1.dat': file('shard_1.dat',
+        '[VESSEL SHARD #1 — FRAGMENT DATA]\n01001010 10110101 00110011...\nKRONOS has been holding this.',
+        { locked: true, vesselShard: 'shard1' }),
     }),
     etc: dir('etc', {
       shadow: file('shadow', 'root:$6$AXVM...:18923:0:99999:7:::', { locked: true }),
@@ -102,4 +107,28 @@ export const MARKET: HostNode = {
   ports: [],
 };
 
-export const ALL_HOSTS: HostNode[] = [LOCALHOST, SANDBOX, KRONOS, MARKET];
+export const AXIOM_NODE: HostNode = {
+  id: '10.77.0.1',
+  hostname: 'unknown.encrypted',
+  x: 0.5, y: 0.42,
+  kind: 'server',
+  firewall: 4,
+  traceSpeed: 25,
+  hidden: true, // not revealed by nmap — only via the q2_kronos quest reward
+  connections: ['10.0.0.5'],
+  fs: dir('/', {
+    home: dir('home', {
+      'identity.enc': file('identity.enc',
+        'This node belongs to AXIOM.\nHe is alive. He has been watching.\nHe seeded the remaining VESSEL shards across the net — some with allies, some with enemies.\n\nIf you\'ve come this far, you are who he thought you were.',
+        { locked: true, encrypted: true, password: 'GH0ST_PR0T0C0L', onRead: 'axiom_identity' }),
+    }),
+    data: dir('data', {
+      'shard_2.dat': file('shard_2.dat',
+        '[VESSEL SHARD #2 — FRAGMENT DATA]\n11010010 00101101 10011100...',
+        { vesselShard: 'shard2' }),
+    }),
+  }),
+  ports: [makePort('ssh'), makePort('ftp'), makePort('http'), makePort('smtp'), makePort('sql')],
+};
+
+export const ALL_HOSTS: HostNode[] = [LOCALHOST, SANDBOX, KRONOS, MARKET, AXIOM_NODE];

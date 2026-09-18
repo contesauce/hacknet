@@ -55,6 +55,13 @@ export class SidePanel {
     }
     this.shell.pendingFocusApp = null;
 
+    // Let mounted apps react to state changes from outside themselves
+    // (e.g. quests completing from a terminal command).
+    for (const id of openAppIds) {
+      const container = this.appContainers.get(id);
+      if (container) getApp(id)?.update?.(container, this.shell);
+    }
+
     this.renderTabs(openAppIds);
     this.renderContent();
   }

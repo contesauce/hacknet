@@ -7,6 +7,13 @@ export interface AppDef {
   cpu: number; // %, held for as long as the app stays open
   /** Called once when the app's tab is mounted. The app owns `container` until closed. */
   render(container: HTMLElement, shell: Shell): void;
+  /**
+   * Optional: called on every state change while the app is mounted (not just
+   * while its tab is active). Use this when the app's content can change from
+   * outside itself — e.g. quests completing from terminal commands — rather
+   * than only from interaction inside the app's own container.
+   */
+  update?(container: HTMLElement, shell: Shell): void;
 }
 
 const registry = new Map<string, AppDef>();
