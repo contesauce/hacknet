@@ -1,0 +1,9 @@
+name = "hacknet"
+compatibility_date = "2024-09-23"
+
+# Static-only for now: this deploys the built game (dist/) with no server
+# code. Once Google OAuth + D1 saves are wired up, this gets a `main`
+# entry point (a small Worker) that handles /api/* and falls back to
+# serving these assets for everything else.
+[assets]
+directory = "./dist"

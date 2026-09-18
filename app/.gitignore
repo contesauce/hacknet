@@ -12,6 +12,9 @@ dist
 dist-ssr
 *.local
 
+# wrangler local state (Cloudflare dev/deploy cache) — never commit
+.wrangler
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
