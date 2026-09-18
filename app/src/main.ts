@@ -9,6 +9,7 @@ import { registerAllApps } from './apps/index';
 import { registerAllStores } from './data/stores';
 import { registerAllQuests } from './data/quests';
 import { registerAllFactions } from './data/factions';
+import { applyFx } from './core/fx';
 import { SidePanel } from './ui/side-panel';
 
 registerAllApps();
@@ -46,7 +47,10 @@ app.innerHTML = `
     <div class="panel" id="side-panel-root" style="flex:1;min-height:0"></div>
   </div>
   <div class="panel" id="main"></div>
+  <div id="fx-scanlines"></div>
 `;
+
+applyFx(state.fx);
 
 const termUI = new TerminalUI(shell, document.getElementById('main')!);
 const sidePanel = new SidePanel(document.getElementById('side-panel-root')!, shell, net);

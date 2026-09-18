@@ -195,3 +195,51 @@ html, body {
 
 ::-webkit-scrollbar { width: 6px; }
 ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+/* ── CRT / aesthetic fx — independent opt-in layers, toggled in Settings ── */
+
+/* Scanlines: a fixed overlay, invisible unless the class is on <body> */
+#fx-scanlines {
+  pointer-events: none;
+  position: fixed;
+  inset: 0;
+  z-index: 9000;
+  display: none;
+  background: repeating-linear-gradient(
+    0deg,
+    rgba(255, 255, 255, 0.035) 0px,
+    rgba(255, 255, 255, 0.035) 1px,
+    transparent 1px,
+    transparent 3px
+  );
+}
+body.fx-scanlines-on #fx-scanlines { display: block; }
+
+/* CRT glow: vignette + a slow, subtle phosphor flicker on the whole app */
+body.fx-crt-glow-on #app {
+  box-shadow: inset 0 0 140px rgba(0, 0, 0, 0.55);
+  animation: crt-flicker 6s infinite;
+}
+@keyframes crt-flicker {
+  0%, 100% { opacity: 1; }
+  92% { opacity: 1; }
+  92.5% { opacity: 0.94; }
+  93% { opacity: 1; }
+}
+
+/* RGB split: chromatic-aberration edge on terminal text. Heaviest effect —
+   off by default. Scoped to .line so it doesn't apply to UI chrome. */
+body.fx-rgb-split-on .line {
+  text-shadow: -1px 0 rgba(255, 40, 80, 0.5), 1px 0 rgba(40, 220, 255, 0.4);
+}
+
+.fx-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  padding: 10px;
+  border-bottom: 1px solid var(--border);
+}
+.fx-label { font-size: 12px; font-weight: 600; }
+.app-settings { flex: 1; min-height: 0; overflow-y: auto; }

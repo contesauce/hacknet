@@ -35,6 +35,7 @@ export interface GameState {
   shadowChoice: 'phantom' | 'archon' | 'neither' | null; // the VESSEL-endgame allegiance, separate from `faction`
   mail: MailMessage[];
   notes: string[];
+  fx: { scanlines: boolean; crtGlow: boolean; rgbSplit: boolean };
 }
 
 export function newGameState(): GameState {
@@ -67,6 +68,7 @@ export function newGameState(): GameState {
       },
     ],
     notes: [],
+    fx: { scanlines: true, crtGlow: true, rgbSplit: false },
   };
 }
 
