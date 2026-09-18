@@ -97,7 +97,6 @@ canvas{display:block;width:100%;height:100%;}
 /* ── WEBSITE RENDERER ────────────────────────────────────────────────────── */
 .site-frame{width:100%;height:100%;border:none;background:#fff;}
 .ascii-terminal{background:#000;color:#00ff66;padding:10px;font-size:11px;white-space:pre;overflow-y:auto;height:100%;}
-.eos-device{background:#1a1a2e;border:2px solid #444;border-radius:8px;padding:10px;font-size:11px;height:100%;overflow-y:auto;}
 
 /* ── RIGHT COLUMN (terminal + IRC tabs) ──────────────────────────────────── */
 #right-col{display:flex;flex-direction:column;gap:5px;min-height:0;}
@@ -125,8 +124,6 @@ canvas{display:block;width:100%;height:100%;}
 #cmd{background:transparent;border:none;outline:none;color:var(--primary);font-family:inherit;font-size:12px;flex:1;}
 
 /* IRC */
-#irc-panel{display:none;flex-direction:column;}
-#irc-panel.show{display:flex;}
 #irc-chanbar{display:flex;gap:2px;padding:5px;border-bottom:1px solid var(--dim);flex-shrink:0;flex-wrap:wrap;}
 .chanb{background:transparent;border:1px solid var(--dim);color:var(--dim);
   font-family:inherit;font-size:10px;padding:2px 7px;cursor:pointer;border-radius:1px;}
@@ -140,7 +137,6 @@ canvas{display:block;width:100%;height:100%;}
 .im-you{color:var(--primary);}
 .im-warn{color:var(--warn);}
 .im-hot{color:var(--alert);}
-.im-cmd{color:#555;font-style:italic;}
 #irc-input-row{display:flex;align-items:center;border-top:1px solid var(--dim);padding:5px 7px;gap:5px;flex-shrink:0;}
 #irc-prompt{color:var(--accent);font-size:12px;white-space:nowrap;}
 #irc-input{background:transparent;border:none;outline:none;color:var(--primary);font-family:inherit;font-size:12px;flex:1;}
@@ -398,11 +394,10 @@ const AUDIO = (function(){
 
 // ── RIG ───────────────────────────────────────────────────────────────────────
 const RIG = {
-  ramTotal: 8, ramMax: 64,
+  ramTotal: 8,
   cpuSpeed: 2.4, cpuCores: 2,
   cooling: { dissipation:1.0, stress:0, broken:false },
   weightCap: 16, weightUsed: 2,
-  upgrades: [],
 };
 
 // ── PROCESSES ─────────────────────────────────────────────────────────────────
@@ -428,11 +423,10 @@ const GS = {
   notes:[], discovered:['localhost','192.168.1.10'],
   hops:[], hopPing:0, maxHops:3,
   history:[], histIdx:-1,
-  ramUsed:0.4, cpuLoad:8, tempF:98, coolHealth:100,
+  ramUsed:0.4, cpuLoad:8, tempF:98,
   stolenThemes:[], currentTheme:'default',
   openPorts:{},   // ip -> [portNums cracked]
   adminOn:[],     // ips where we have admin
-  logs:{},        // ip -> [log entries]
   vesselShards:[], // collected shard IDs
   act:1, questFlags:{},
   shadowThreshold:0, // rises with notoriety+hacks, triggers at 80
@@ -445,11 +439,10 @@ const GS = {
 };
 
 // ── NETWORK ───────────────────────────────────────────────────────────────────
-// nodeType: 'server'|'corp'|'personal'|'eos'|'relay'
-// renderType: 'website'|'ascii'|'eos'|'database'
+// renderType: 'website'|'ascii'
 const NET = {
   'localhost':{
-    name:'Home Rig', x:.1, y:.45, nodeType:'server', renderType:'ascii',
+    name:'Home Rig', x:.1, y:.45, renderType:'ascii',
     connections:['192.168.1.10','10.88.0.1'],
     ports:{22:{type:'SSH',cracked:true},21:{type:'FTP',cracked:true}},
     adminAccess:true,
@@ -461,7 +454,7 @@ const NET = {
     }
   },
   '192.168.1.10':{
-    name:'Dev Sandbox', x:.32, y:.2, nodeType:'server', renderType:'ascii',
+    name:'Dev Sandbox', x:.32, y:.2, renderType:'ascii',
     connections:['localhost','10.0.0.5'],
     ports:{22:{type:'SSH',cracked:false},21:{type:'FTP',cracked:false}},
     firewallLayers:1, adminAccess:false,
@@ -473,7 +466,7 @@ const NET = {
     }
   },
   '10.0.0.5':{
-    name:'KRONOS Gateway', x:.6, y:.15, nodeType:'corp', renderType:'website',
+    name:'KRONOS Gateway', x:.6, y:.15, renderType:'website',
     connections:['192.168.1.10','172.20.0.1','10.11.0.99'],
     ports:{22:{type:'SSH',cracked:false},21:{type:'FTP',cracked:false},80:{type:'HTTP',cracked:false},25:{type:'SMTP',cracked:false}},
     firewallLayers:3, adminAccess:false,
@@ -507,7 +500,7 @@ const NET = {
     faction:'kronos'
   },
   '172.20.0.1':{
-    name:'Shadow Market', x:.45, y:.65, nodeType:'server', renderType:'ascii',
+    name:'Shadow Market', x:.45, y:.65, renderType:'ascii',
     connections:['10.0.0.5','10.99.0.1','10.88.0.1'],
     ports:{22:{type:'SSH',cracked:false},80:{type:'HTTP',cracked:false}},
     firewallLayers:1, adminAccess:false,
@@ -519,7 +512,7 @@ const NET = {
     }
   },
   '10.88.0.1':{
-    name:'Relay Alpha', x:.22, y:.72, nodeType:'server', renderType:'ascii',
+    name:'Relay Alpha', x:.22, y:.72, renderType:'ascii',
     connections:['localhost','10.88.0.2','172.20.0.1'],
     ports:{22:{type:'SSH',cracked:false}},
     firewallLayers:0, adminAccess:false,
@@ -531,7 +524,7 @@ const NET = {
     }
   },
   '10.88.0.2':{
-    name:'Relay Beta (Dead End)', x:.12, y:.85, nodeType:'server', renderType:'ascii',
+    name:'Relay Beta (Dead End)', x:.12, y:.85, renderType:'ascii',
     connections:['10.88.0.1'],
     ports:{22:{type:'SSH',cracked:false}},
     firewallLayers:0, adminAccess:false,
@@ -543,7 +536,7 @@ const NET = {
     }
   },
   '10.11.0.99':{
-    name:'Wraith Den', x:.82, y:.3, nodeType:'server', renderType:'ascii',
+    name:'Wraith Den', x:.82, y:.3, renderType:'ascii',
     connections:['10.0.0.5','10.11.1.0'],
     ports:{22:{type:'SSH',cracked:false},1433:{type:'SQL',cracked:false}},
     firewallLayers:2, adminAccess:false,
@@ -557,7 +550,7 @@ const NET = {
     }
   },
   '10.11.1.0':{
-    name:'Wraith Shop', x:.92, y:.45, nodeType:'server', renderType:'ascii',
+    name:'Wraith Shop', x:.92, y:.45, renderType:'ascii',
     connections:['10.11.0.99'],
     ports:{22:{type:'SSH',cracked:false}},
     firewallLayers:1, adminAccess:false,
@@ -569,7 +562,7 @@ const NET = {
     }
   },
   '10.99.0.1':{
-    name:'Broker Exchange', x:.7, y:.78, nodeType:'corp', renderType:'website',
+    name:'Broker Exchange', x:.7, y:.78, renderType:'website',
     connections:['172.20.0.1','10.0.0.5'],
     ports:{22:{type:'SSH',cracked:false},80:{type:'HTTP',cracked:false},25:{type:'SMTP',cracked:false}},
     firewallLayers:2, adminAccess:false,
@@ -602,7 +595,7 @@ const NET = {
     }
   },
   '10.77.0.1':{
-    name:'Unknown — ENCRYPTED', x:.5, y:.42, nodeType:'server', renderType:'ascii',
+    name:'Unknown — ENCRYPTED', x:.5, y:.42, renderType:'ascii',
     connections:['10.0.0.5','10.99.0.1','10.88.0.1'],
     ports:{22:{type:'SSH',cracked:false},80:{type:'HTTP',cracked:false},25:{type:'SMTP',cracked:false},1433:{type:'SQL',cracked:false}},
     firewallLayers:4, adminAccess:false,
@@ -619,7 +612,7 @@ const NET = {
   },
   // PHANTOM CIRCUIT node
   '10.33.0.1':{
-    name:'PHANTOM CIRCUIT', x:.2, y:.35, nodeType:'server', renderType:'ascii',
+    name:'PHANTOM CIRCUIT', x:.2, y:.35, renderType:'ascii',
     connections:['10.88.0.1','10.77.0.1'],
     ports:{22:{type:'SSH',cracked:false},21:{type:'FTP',cracked:false},80:{type:'HTTP',cracked:false},25:{type:'SMTP',cracked:false},1433:{type:'SQL',cracked:false}},
     firewallLayers:5, adminAccess:false,
@@ -635,7 +628,7 @@ const NET = {
   },
   // ARCHON DIVISION node
   '10.55.0.1':{
-    name:'ARCHON DIVISION', x:.8, y:.65, nodeType:'corp', renderType:'website',
+    name:'ARCHON DIVISION', x:.8, y:.65, renderType:'website',
     connections:['10.0.0.5','10.77.0.1'],
     ports:{22:{type:'SSH',cracked:false},21:{type:'FTP',cracked:false},80:{type:'HTTP',cracked:false},25:{type:'SMTP',cracked:false},1433:{type:'SQL',cracked:false}},
     firewallLayers:5, adminAccess:false,
@@ -665,7 +658,7 @@ const NET = {
   },
   // AXIOM's final node - only accessible in act 4
   '10.00.0.1':{
-    name:'AXIOM — FINAL NODE', x:.5, y:.25, nodeType:'server', renderType:'ascii',
+    name:'AXIOM — FINAL NODE', x:.5, y:.25, renderType:'ascii',
     connections:['10.77.0.1'],
     ports:{22:{type:'SSH',cracked:false},21:{type:'FTP',cracked:false},80:{type:'HTTP',cracked:false},25:{type:'SMTP',cracked:false},1433:{type:'SQL',cracked:false}},
     firewallLayers:0, adminAccess:false,
@@ -682,12 +675,11 @@ const NET = {
   },
   // N0DE Honeypot - act 1 test
   '10.22.0.1':{
-    name:'N0DE Honeypot', x:.42, y:.55, nodeType:'server', renderType:'ascii',
+    name:'N0DE Honeypot', x:.42, y:.55, renderType:'ascii',
     connections:['192.168.1.10','10.88.0.1'],
     ports:{22:{type:'SSH',cracked:false},21:{type:'FTP',cracked:false}},
     firewallLayers:1, adminAccess:false,
     traceSpeed:120,
-    questGate:'act1_contact',
     fs:{
       '/home/test_notice.txt':{content:'If you\'re reading this, you passed.\nN0DE is watching.\nWe\'ll be in touch via your mail.\n\nWelcome.\n\n— N0DE',prot:false,questItem:'act1_honeypot_pass'},
       '/log/access.log':{content:'[TEST NODE — INTENTIONALLY ACCESSIBLE]\n[CANDIDATE PERFORMANCE LOGGED]',prot:false,isLog:true},
@@ -695,7 +687,7 @@ const NET = {
   },
   // Bastion node
   '10.44.0.1':{
-    name:'Bastion Fortress', x:.88, y:.2, nodeType:'server', renderType:'ascii',
+    name:'Bastion Fortress', x:.88, y:.2, renderType:'ascii',
     connections:['10.0.0.5'],
     ports:{22:{type:'SSH',cracked:false},1433:{type:'SQL',cracked:false}},
     firewallLayers:3, adminAccess:false,
@@ -880,7 +872,6 @@ const SIDE_CONTRACTS = [
 const IRC_HISTORY = {
   general:[], contracts:[], tech:[], faction:[], deepnet:[]
 };
-const NPC_HANDLES = ['d3f4ult','c0el','V4P0R','anon_7','kr0nos_watch','n0de_bot'];
 const NPC_COLORS  = {d3f4ult:'#ffaa00',c0el:'#00ffcc',V4P0R:'#cc88ff',anon_7:'#ff6666',kr0nos_watch:'#888888',n0de_bot:'#00ff66'};
 
 function ircMsg(chan, user, text, cls) {
@@ -2104,8 +2095,6 @@ function updateRemote(){
   document.getElementById('rp-title').textContent=GS.host+' // '+(node?.name||'??');
   if(node?.renderType==='website'&&node.website){
     body.innerHTML=`<div style="height:220px;overflow-y:auto">${node.website}</div>`;
-  } else if(node?.renderType==='eos'){
-    body.innerHTML=`<div class="eos-device"><div style="color:#0f0;margin-bottom:8px">eOS Device Interface</div><div style="color:#888;font-size:10px">${node.name}</div></div>`;
   } else {
     const ports=Object.entries(node?.ports||{}).map(([p,d])=>`  ${d.type}:${p} [${d.cracked?'<span style="color:#ffaa00">OPEN</span>':'<span style="color:#ff2244">LOCKED</span>'}]`).join('\n');
     const fw=node?.firewallLayers>0?`  Firewall: ${node.firewallLayers} layers` : '  Firewall: none';
@@ -2267,7 +2256,6 @@ const CMD={
     if(!node){tprint('Host unreachable: '+ip,'terr');return;}
     if(!GS.discovered.includes(ip)){tprint('Unknown host. Run scan first.','terr');return;}
 
-    if(node.questGate&&!GS.questFlags[node.questGate]){tprint('Access denied. Complete prerequisites first.','terr');return;}
     const now=Date.now();
     const lastVisit=GS.visitLog?.[ip];
     GS.visitLog=GS.visitLog||{};
@@ -2637,9 +2625,6 @@ document.addEventListener('click',   ()=>{ if(!AUDIO.isOn()) AUDIO.init(); }, {o
 
 // ── RANDOM ROLLING SCANLINE ─────────────────────────────────────────────────
 (function(){
-  const beam = document.querySelector('body::before') ? null : null; // use direct style
-  const el = document.createElement('style');
-  // We drive body::before via a dedicated overlay div instead
   const overlay = document.createElement('div');
   overlay.id = 'scan-beam';
   overlay.style.cssText = 'pointer-events:none;position:fixed;inset:0;z-index:9001;opacity:0;will-change:transform,opacity;' +
