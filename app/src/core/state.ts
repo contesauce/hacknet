@@ -32,6 +32,7 @@ export interface GameState {
   vesselShards: string[];
   faction: string | null;
   factionRep: Record<string, number>;
+  shadowChoice: 'phantom' | 'archon' | 'neither' | null; // the VESSEL-endgame allegiance, separate from `faction`
   mail: MailMessage[];
   notes: string[];
 }
@@ -57,6 +58,7 @@ export function newGameState(): GameState {
     vesselShards: [],
     faction: null,
     factionRep: {},
+    shadowChoice: null,
     mail: [
       {
         id: 'boot', from: 'sys@async.os', subj: 'System boot',

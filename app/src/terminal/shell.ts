@@ -108,10 +108,11 @@ export class Shell {
         this.state.credits += q.reward.credits;
         this.print(`  +${q.reward.credits}cr`, 'dim');
       }
-      if (q.reward.revealHost && !this.state.discovered.has(q.reward.revealHost)) {
-        this.state.discovered.add(q.reward.revealHost);
-        const h = this.net.get(q.reward.revealHost);
-        this.print(`  [LEAD] new host discovered: ${q.reward.revealHost}${h ? ' — ' + h.hostname : ''}`, 'warn');
+      for (const hostId of q.reward.revealHosts ?? []) {
+        if (this.state.discovered.has(hostId)) continue;
+        this.state.discovered.add(hostId);
+        const h = this.net.get(hostId);
+        this.print(`  [LEAD] new host discovered: ${hostId}${h ? ' — ' + h.hostname : ''}`, 'warn');
       }
       if (q.reward.mail) {
         this.state.mail.push({ id: `q_${id}`, ...q.reward.mail, read: false });

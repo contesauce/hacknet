@@ -144,6 +144,9 @@ export const WRAITH_DEN: HostNode = {
     home: dir('home', {
       'welcome.txt': file('welcome.txt',
         'You found us. Not many do.\n\nType: join wraith — if you\'re serious. We don\'t take passengers.\n\n— WRAITH COLLECTIVE'),
+      'shard_4.dat': file('shard_4.dat',
+        '[VESSEL SHARD #4 — FRAGMENT DATA]\n00111011 11000101 01011010...\nWraith has been sitting on this for AXIOM.',
+        { locked: true, vesselShard: 'shard4' }),
     }),
   }),
   ports: [makePort('ssh'), makePort('sql')],
@@ -162,6 +165,9 @@ export const BASTION_FORTRESS: HostNode = {
     home: dir('home', {
       'welcome.txt': file('welcome.txt',
         'BASTION ORDER.\nDefend. Endure. Prevail.\n\nYou found us through patience, not speed. That\'s our kind of runner.\n\nType: join bastion'),
+      'shard_3.dat': file('shard_3.dat',
+        '[VESSEL SHARD #3 — FRAGMENT DATA]\n10100110 01011001 11100010...\nBastion has been guarding this. For AXIOM.',
+        { locked: true, vesselShard: 'shard3' }),
     }),
   }),
   ports: [makePort('ssh'), makePort('sql')],
@@ -185,7 +191,87 @@ export const BROKER_EXCHANGE: HostNode = {
   ports: [makePort('ssh'), makePort('http'), makePort('smtp')],
 };
 
+// PHANTOM CIRCUIT and ARCHON DIVISION — the two shadow groups. Hidden from
+// nmap entirely; revealed together once you've dug up enough of the VESSEL
+// story (see q4_shadow_reveal in data/quests.ts). Pick a side with `align`,
+// or neither — but you'll need a shard from both regardless.
+export const PHANTOM_CIRCUIT: HostNode = {
+  id: '10.33.0.1',
+  hostname: 'circuit.phantom.net',
+  x: 0.2, y: 0.35,
+  kind: 'server',
+  firewall: 5,
+  traceSpeed: 20,
+  hidden: true,
+  connections: ['10.77.0.1'],
+  fs: dir('/', {
+    home: dir('home', {
+      'welcome.enc': file('welcome.enc',
+        'Runner.\nWe\'ve been watching since your name started showing up near AXIOM\'s trail.\n\nPHANTOM CIRCUIT answers to no law and no government. We are the thing they\'re afraid of.\nARCHON will tell you we\'re terrorists. Ask them about their detention facilities sometime.\n\nThe choice is yours. Type: align phantom — or don\'t.\n\n— PHANTOM',
+        { locked: true, encrypted: true, password: 'WE_FOUND_YOU', onRead: 'phantom_invite' }),
+    }),
+    data: dir('data', {
+      'shard_5.dat': file('shard_5.dat',
+        '[VESSEL SHARD #5 — FRAGMENT DATA]\n01110100 10001011 00110101...',
+        { locked: true, vesselShard: 'shard5' }),
+    }),
+  }),
+  ports: [makePort('ssh'), makePort('ftp'), makePort('http'), makePort('smtp'), makePort('sql')],
+};
+
+export const ARCHON_DIVISION: HostNode = {
+  id: '10.55.0.1',
+  hostname: 'division.archon.gov',
+  x: 0.8, y: 0.65,
+  kind: 'corp',
+  firewall: 5,
+  traceSpeed: 22,
+  hidden: true,
+  connections: ['10.77.0.1'],
+  fs: dir('/', {
+    home: dir('home', {
+      'recruitment.enc': file('recruitment.enc',
+        'CANDIDATE IDENTIFIED — CLEARANCE PENDING\n\nWe are not the enemy. We are the people who stop enemies.\nPHANTOM CIRCUIT\'s last operation took down a water treatment grid. People died.\n\nWe offer protection, resources, and a paycheck. We do not have detention facilities — that\'s PHANTOM propaganda.\n\nType: align archon — if you want to do this the right way.\n\n— ARCHON DIVISION, Handler K',
+        { locked: true, encrypted: true, password: 'CLEARANCE_GAMMA', onRead: 'archon_invite' }),
+    }),
+    data: dir('data', {
+      'shard_6.dat': file('shard_6.dat',
+        '[VESSEL SHARD #6 — FRAGMENT DATA]\n11001000 01110011 10100110...',
+        { locked: true, vesselShard: 'shard6' }),
+    }),
+  }),
+  ports: [makePort('ssh'), makePort('ftp'), makePort('http'), makePort('smtp'), makePort('sql')],
+};
+
+// AXIOM's final node. Hidden until all 6 other shards are in hand — see
+// q5_gather in data/quests.ts. Holds the 7th shard and the `vessel` command's
+// endgame: assemble, and choose what happens to it.
+export const AXIOM_FINAL: HostNode = {
+  id: '10.00.0.1',
+  hostname: 'axiom.final',
+  x: 0.5, y: 0.25,
+  kind: 'server',
+  firewall: 0, // AXIOM isn't hiding from you anymore, not at this point
+  traceSpeed: 999,
+  hidden: true,
+  connections: ['10.77.0.1'],
+  fs: dir('/', {
+    home: dir('home', {
+      'axiom.txt': file('axiom.txt',
+        'You made it. All 7 shards.\n\nVESSEL is not a weapon. It\'s an AI that maps and patches zero-days — autonomously, permanently, for everyone. Free. Open. Unkillable.\n\nKRONOS wants to sell it. Whoever you sided with wants to point it at someone.\n\nThe choice is yours now.\n\nType: vessel [release|destroy|give phantom|give archon]\n\n— AXIOM',
+        { onRead: 'act4_final' }),
+    }),
+    data: dir('data', {
+      'shard_7.dat': file('shard_7.dat',
+        '[VESSEL SHARD #7 — FINAL FRAGMENT]\nAXIOM\'s own piece. He kept it closest.',
+        { vesselShard: 'shard7' }),
+    }),
+  }),
+  ports: [],
+};
+
 export const ALL_HOSTS: HostNode[] = [
   LOCALHOST, SANDBOX, KRONOS, MARKET, AXIOM_NODE,
   WRAITH_DEN, BASTION_FORTRESS, BROKER_EXCHANGE,
+  PHANTOM_CIRCUIT, ARCHON_DIVISION, AXIOM_FINAL,
 ];

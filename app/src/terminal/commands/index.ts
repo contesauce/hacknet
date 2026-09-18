@@ -6,6 +6,7 @@ import { clear, history, top, ps, killCmd, help, man } from './sys-commands';
 import { appsCmd, appLauncherCommands } from './app-commands';
 import { shop, buy } from './store-commands';
 import { join } from './faction-commands';
+import { align, vessel } from './vessel-commands';
 
 export function registerAllCommands(shell: Shell) {
   [
@@ -15,5 +16,6 @@ export function registerAllCommands(shell: Shell) {
     clear, history, top, ps, killCmd, help, man,
     appsCmd, ...appLauncherCommands(),
     shop, buy, join,
+    align, vessel,
   ].forEach(c => shell.register(c));
 }

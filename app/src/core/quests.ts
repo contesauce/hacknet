@@ -2,8 +2,8 @@ import type { Shell } from '../terminal/shell';
 
 export interface QuestReward {
   credits?: number;
-  revealHost?: string;                                 // reveal a hidden host id
-  mail?: { from: string; subj: string; body: string };  // deliver a mail message
+  revealHosts?: string[];                                // reveal one or more hidden host ids
+  mail?: { from: string; subj: string; body: string };   // deliver a mail message
 }
 
 export interface Quest {
