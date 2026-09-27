@@ -1,6 +1,23 @@
-import type { Command } from '../shell';
+import type { Command, Shell } from '../shell';
 import { listApps } from '../../core/apps';
 import type { AppDef } from '../../core/apps';
+
+/** Shared open-or-focus logic behind every app launcher command. */
+export function launchApp(shell: Shell, def: AppDef) {
+  const existing = shell.procs.findApp(def.id);
+  if (existing) {
+    shell.pendingFocusApp = def.id;
+    shell.print(`${def.name} already open — switching to it.`, 'dim');
+    return;
+  }
+  if (def.ram > shell.ramFree()) {
+    shell.print(`${def.id}: not enough RAM (${def.ram}G needed, ${shell.ramFree().toFixed(1)}G free)`, 'err');
+    return;
+  }
+  const proc = shell.procs.spawn({ kind: 'app', name: def.name, ram: def.ram, cpu: def.cpu * shell.state.cpuMult, appId: def.id });
+  shell.pendingFocusApp = def.id;
+  shell.print(`${def.name} launched (pid ${proc.pid}).`, 'ok');
+}
 
 export const appsCmd: Command = {
   name: 'apps', usage: 'apps', help: 'list launchable applications and their resource cost',
@@ -14,25 +31,11 @@ export const appsCmd: Command = {
 };
 
 /** One launcher command per registered app, e.g. `mail`, `notes`. */
-export function appLauncherCommands(): Command[] {
-  return listApps().map((def: AppDef): Command => ({
+export function appLauncherCommands(exclude: string[] = []): Command[] {
+  return listApps().filter(a => !exclude.includes(a.id)).map((def: AppDef): Command => ({
     name: def.id,
     usage: def.id,
     help: `open the ${def.name} app (${def.ram}G RAM, ${def.cpu}% cpu while open)`,
-    run(shell) {
-      const existing = shell.procs.findApp(def.id);
-      if (existing) {
-        shell.pendingFocusApp = def.id;
-        shell.print(`${def.name} already open — switching to it.`, 'dim');
-        return;
-      }
-      if (def.ram > shell.ramFree()) {
-        shell.print(`${def.id}: not enough RAM (${def.ram}G needed, ${shell.ramFree().toFixed(1)}G free)`, 'err');
-        return;
-      }
-      const proc = shell.procs.spawn({ kind: 'app', name: def.name, ram: def.ram, cpu: def.cpu * shell.state.cpuMult, appId: def.id });
-      shell.pendingFocusApp = def.id;
-      shell.print(`${def.name} launched (pid ${proc.pid}).`, 'ok');
-    },
+    run(shell) { launchApp(shell, def); },
   }));
 }

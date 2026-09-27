@@ -7,6 +7,7 @@ import { appsCmd, appLauncherCommands } from './app-commands';
 import { shop, buy } from './store-commands';
 import { join } from './faction-commands';
 import { align, vessel } from './vessel-commands';
+import { contracts } from './contract-commands';
 
 export function registerAllCommands(shell: Shell) {
   [
@@ -14,8 +15,9 @@ export function registerAllCommands(shell: Shell) {
     whoami, hostnameCmd, ifconfig, nmap, ssh, exitCmd,
     hydra, decrypt, scp,
     clear, history, top, ps, killCmd, help, man,
-    appsCmd, ...appLauncherCommands(),
+    appsCmd, ...appLauncherCommands(['contracts']),
     shop, buy, join,
     align, vessel,
+    contracts,
   ].forEach(c => shell.register(c));
 }

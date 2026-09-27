@@ -29,6 +29,8 @@ export interface GameState {
   questFlags: Record<string, boolean>;
   activeQuests: string[];
   completedQuests: string[];
+  activeContracts: string[];
+  completedContracts: string[];
   vesselShards: string[];
   faction: string | null;
   factionRep: Record<string, number>;
@@ -56,6 +58,8 @@ export function newGameState(): GameState {
     questFlags: {},
     activeQuests: ['q1_boot', 'q1_sandbox', 'q1_market'],
     completedQuests: [],
+    activeContracts: [],
+    completedContracts: [],
     vesselShards: [],
     faction: null,
     factionRep: {},
