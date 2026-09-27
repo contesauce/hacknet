@@ -4,6 +4,7 @@ import { notesApp } from './notes';
 import { missionsApp } from './missions';
 import { factionsApp } from './factions';
 import { settingsApp } from './settings';
+import { contractsApp } from './contracts';
 
 export function registerAllApps() {
   registerApp(mailApp);
@@ -11,4 +12,5 @@ export function registerAllApps() {
   registerApp(missionsApp);
   registerApp(factionsApp);
   registerApp(settingsApp);
+  registerApp(contractsApp);
 }

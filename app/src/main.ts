@@ -9,6 +9,7 @@ import { registerAllApps } from './apps/index';
 import { registerAllStores } from './data/stores';
 import { registerAllQuests } from './data/quests';
 import { registerAllFactions } from './data/factions';
+import { registerAllContracts } from './data/contracts';
 import { applyFx } from './core/fx';
 import { SidePanel } from './ui/side-panel';
 
@@ -16,6 +17,7 @@ registerAllApps();
 registerAllStores();
 registerAllQuests();
 registerAllFactions();
+registerAllContracts();
 
 const net = new NetworkGraph();
 ALL_HOSTS.forEach(h => net.add(h));

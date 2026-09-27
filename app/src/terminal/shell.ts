@@ -4,6 +4,7 @@ import { NetworkGraph } from '../core/network';
 import { VirtualFs } from '../core/fs';
 import { ProcessManager } from '../core/process';
 import { getQuest, allQuests } from '../core/quests';
+import { getContract } from '../core/contracts';
 import type { ParsedCommand } from './parser';
 import { parse } from './parser';
 
@@ -90,7 +91,31 @@ export class Shell {
       this.print(`internal error: ${(e as Error).message}`, 'err');
     }
     this.checkQuests();
+    this.checkContracts();
     this.persist();
+  }
+
+  /** Evaluate active contracts' completion predicates and grant rewards. Contracts don't chain like quests. */
+  checkContracts() {
+    for (const id of [...this.state.activeContracts]) {
+      const c = getContract(id);
+      if (!c) continue;
+      if (!c.complete(this)) continue;
+
+      this.state.activeContracts = this.state.activeContracts.filter(x => x !== id);
+      this.state.completedContracts.push(id);
+      this.print(`[CONTRACT COMPLETE] ${c.title}`, 'ok');
+
+      if (c.reward.credits) {
+        this.state.credits += c.reward.credits;
+        this.print(`  +${c.reward.credits}cr`, 'dim');
+      }
+      if (c.reward.rep) {
+        const { faction, amount } = c.reward.rep;
+        this.state.factionRep[faction] = (this.state.factionRep[faction] ?? 0) + amount;
+        this.print(`  +${amount} rep — ${faction}`, 'dim');
+      }
+    }
   }
 
   /** Evaluate active quests' completion predicates, grant rewards, and unlock follow-ups. */
