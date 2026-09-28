@@ -21,6 +21,8 @@ export class Shell {
   registry = new Map<string, Command>();
   onPrint: (line: Line) => void = () => {};
   onStateChange: () => void = () => {};
+  /** Set by main.ts to debounce-sync to the remote save when signed in. */
+  onPersist: () => void = () => {};
   busy = false; // true while a timed command (nmap/hydra) is running
 
   procs = new ProcessManager();
@@ -63,6 +65,7 @@ export class Shell {
 
   persist() {
     saveLocal(this.state);
+    this.onPersist();
     this.onStateChange();
   }
 

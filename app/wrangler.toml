@@ -13,3 +13,10 @@ binding = "ASSETS"
 # `wrangler secret put` (or the dashboard), never committed.
 [vars]
 GOOGLE_CLIENT_ID = "570039485030-n9ptfmt6d320rdl0704gu5r10f5s1b39.apps.googleusercontent.com"
+
+# Persistent saves, keyed by the signed-in Google account.
+[[d1_databases]]
+binding = "DB"
+database_name = "hacknet-saves"
+database_id = "7a9b3b13-0421-4a5e-9c9c-8e6d5bf12e13"
+migrations_dir = "worker/migrations"

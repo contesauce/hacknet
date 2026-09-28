@@ -78,32 +78,41 @@ export function newGameState(): GameState {
 
 const SAVE_KEY = 'async_os_save_v1';
 
-export function saveLocal(state: GameState) {
-  const serializable = {
+/** Plain-JSON form of GameState — Sets don't survive JSON, so those fields become arrays. */
+export function serializeState(state: GameState): Record<string, unknown> {
+  return {
     ...state,
     discovered: [...state.discovered],
     rootedHosts: [...state.rootedHosts],
     toolsInstalled: [...state.toolsInstalled],
   };
-  localStorage.setItem(SAVE_KEY, JSON.stringify(serializable));
+}
+
+/**
+ * Merge parsed save data onto a fresh default state so a save from before a
+ * field existed (we've added several across phases already) doesn't crash on
+ * load — it just gets that field's default instead of `undefined`.
+ */
+export function hydrateState(parsed: Record<string, any>): GameState {
+  const base = newGameState();
+  return {
+    ...base,
+    ...parsed,
+    discovered: new Set(parsed.discovered ?? base.discovered),
+    rootedHosts: new Set(parsed.rootedHosts ?? base.rootedHosts),
+    toolsInstalled: new Set(parsed.toolsInstalled ?? base.toolsInstalled),
+  };
+}
+
+export function saveLocal(state: GameState) {
+  localStorage.setItem(SAVE_KEY, JSON.stringify(serializeState(state)));
 }
 
 export function loadLocal(): GameState | null {
   const raw = localStorage.getItem(SAVE_KEY);
   if (!raw) return null;
   try {
-    const parsed = JSON.parse(raw);
-    // Merge onto a fresh default state so a save from before a field existed
-    // (we've added several across phases already) doesn't crash on load —
-    // it just gets that field's default instead of `undefined`.
-    const base = newGameState();
-    return {
-      ...base,
-      ...parsed,
-      discovered: new Set(parsed.discovered ?? base.discovered),
-      rootedHosts: new Set(parsed.rootedHosts ?? base.rootedHosts),
-      toolsInstalled: new Set(parsed.toolsInstalled ?? base.toolsInstalled),
-    };
+    return hydrateState(JSON.parse(raw));
   } catch {
     return null;
   }

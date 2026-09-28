@@ -12,6 +12,7 @@ import { registerAllFactions } from './data/factions';
 import { registerAllContracts } from './data/contracts';
 import { applyFx } from './core/fx';
 import { SidePanel } from './ui/side-panel';
+import { fetchSession, loadRemote, saveRemote } from './core/remote-save';
 
 registerAllApps();
 registerAllStores();
@@ -22,7 +23,8 @@ registerAllContracts();
 const net = new NetworkGraph();
 ALL_HOSTS.forEach(h => net.add(h));
 
-const state = loadLocal() ?? newGameState();
+const session = await fetchSession();
+const state = (session.loggedIn ? await loadRemote() : null) ?? loadLocal() ?? newGameState();
 const shell = new Shell(state, net);
 registerAllCommands(shell);
 
@@ -31,6 +33,14 @@ app.innerHTML = `
   <div id="sidebar">
     <div class="panel" id="hud">
       <div class="panel-header">Session</div>
+      <div class="hud-row">
+        <span class="hud-label">${session.loggedIn ? 'Signed in' : 'Guest'}</span>
+        <span>
+          ${session.loggedIn
+            ? `${session.name} · <a href="/api/auth/logout" class="dim">sign out</a>`
+            : `<a href="/api/auth/login">sign in with Google</a>`}
+        </span>
+      </div>
       <div class="hud-row"><span class="hud-label">Host</span><span id="hud-host"></span></div>
       <div>
         <div class="hud-row"><span class="hud-label">RAM</span><span id="hud-ram-val"></span></div>
@@ -84,6 +94,14 @@ function renderHud() {
 
 shell.onStateChange = () => { sidePanel.sync(); renderHud(); };
 renderHud();
+
+if (session.loggedIn) {
+  let syncTimer: ReturnType<typeof setTimeout> | undefined;
+  shell.onPersist = () => {
+    clearTimeout(syncTimer);
+    syncTimer = setTimeout(() => saveRemote(shell.state), 2000);
+  };
+}
 
 // Trace decays slowly while not actively cracking something.
 setInterval(() => {

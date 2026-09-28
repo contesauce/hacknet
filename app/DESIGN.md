@@ -80,9 +80,14 @@ contract/mission becomes acceptable) so recon has payoff beyond flavor text.
 Procedural post-story contracts, open-world PvE (PvP is a much bigger lift —
 servers, leaderboards — and not scoped yet).
 
-## Persistent saves
+## Persistent saves — shipped
 
-Tied to Google login via a Cloudflare D1 database — in progress, blocked on
-the `database_id` from `wrangler d1 create`. Once wired, `core/state.ts`'s
-`saveLocal`/`loadLocal` swap to Worker API calls when signed in, falling back
-to `localStorage` when not.
+Tied to Google login via a Cloudflare D1 database (`hacknet-saves`). On boot,
+signed-in players load from `GET /api/save`; everyone else (and anyone the
+fetch fails for) falls back to `localStorage`. Gameplay debounce-syncs back
+to `PUT /api/save` ~2s after each command via a new `shell.onPersist` hook,
+so it doesn't hammer the Worker mid-session. One row per Google account
+(`sub`), full `GameState` stored as JSON in `worker/migrations/0001_create_saves.sql`.
+A guest who signs in later keeps playing on their local save until they next
+save — there's no merge/import step yet if they already had a different
+remote save under that account.
