@@ -1,18 +1,11 @@
 import type { Env } from './env';
 import { buildAuthUrl, exchangeCodeForIdToken, verifyGoogleIdToken } from './auth';
-import { signSession, verifySession, randomToken } from './util';
+import { signSession, randomToken } from './util';
 import { parseCookies, setCookie, clearCookie } from './cookies';
+import { SESSION_COOKIE, SESSION_TTL_SEC, getSession, type SessionPayload } from './session';
+import { handleSaveGet, handleSavePut } from './saves';
 
-const SESSION_COOKIE = 'async_os_session';
 const STATE_COOKIE = 'async_os_oauth_state';
-const SESSION_TTL_SEC = 60 * 60 * 24 * 30; // 30 days
-
-interface SessionPayload {
-  sub: string;
-  email: string;
-  name: string;
-  exp: number;
-}
 
 function redirectUriFor(url: URL): string {
   return `${url.origin}/api/auth/callback`;
@@ -77,9 +70,7 @@ async function handleLogout(): Promise<Response> {
 }
 
 async function handleMe(request: Request, env: Env): Promise<Response> {
-  const cookies = parseCookies(request.headers.get('Cookie'));
-  const token = cookies[SESSION_COOKIE];
-  const session = token ? await verifySession<SessionPayload>(token, env.SESSION_SECRET) : null;
+  const session = await getSession(request, env);
   return Response.json(session ? { loggedIn: true, email: session.email, name: session.name } : { loggedIn: false });
 }
 
@@ -91,6 +82,8 @@ export default {
     if (url.pathname === '/api/auth/callback') return handleCallback(url, request, env);
     if (url.pathname === '/api/auth/logout') return handleLogout();
     if (url.pathname === '/api/auth/me') return handleMe(request, env);
+    if (url.pathname === '/api/save' && request.method === 'GET') return handleSaveGet(request, env);
+    if (url.pathname === '/api/save' && request.method === 'PUT') return handleSavePut(request, env);
 
     return env.ASSETS.fetch(request);
   },
