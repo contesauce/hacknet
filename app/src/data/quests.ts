@@ -1,4 +1,5 @@
 import { registerQuest } from '../core/quests';
+import { getFaction } from '../core/factions';
 
 export function registerAllQuests() {
   registerQuest({
@@ -119,5 +120,40 @@ export function registerAllQuests() {
     desc: 'Find AXIOM at 10.00.0.1, collect the last shard, and run: vessel <action>.',
     reward: { credits: 1000 },
     complete: (shell) => !!shell.state.questFlags.vessel_assembled,
+  });
+
+  // The defection arc — a one-shot offer from your faction's rival, once
+  // you've got rep to lose. See terminal/commands/defection-commands.ts for
+  // the actual mechanics (handler/inject); these just surface it in Missions.
+  registerQuest({
+    id: 'q_defection_offer', name: 'An Offer From the Other Side', act: 3, main: false, after: 'q2_kronos',
+    desc: 'Reach rep 50+ with a faction that has a rival, and someone from the other side will reach out.',
+    reward: {
+      mail: {
+        from: 'unknown@relay.net', subj: 'we should talk',
+        body: 'You\'ve made a name for yourself. Good enough that we noticed.\n\nWe\'re not your faction. We don\'t have to be. Walk away from them, bring us something that proves it, and there\'s a seat on our side.\n\nOr — stay loyal and tell your own people we approached you. Your call. Either way, you\'re out of the shallow end now.\n\nRespond when you\'re ready: handler accept, or handler report.',
+      },
+    },
+    complete: (shell) => {
+      const mine = shell.state.faction;
+      if (!mine) return false;
+      const rival = getFaction(mine)?.rival;
+      if (!rival) return false;
+      return (shell.state.factionRep[mine] ?? 0) >= 50;
+    },
+  });
+
+  registerQuest({
+    id: 'q_defection_exfil', name: 'Insider Access', act: 3, main: false, after: 'q_defection_offer',
+    desc: 'Exfiltrate your faction\'s ops ledger — scp ops_ledger.dat off their node.',
+    reward: { credits: 50 },
+    complete: (shell) => !!shell.state.questFlags.defection_exfiltrated,
+  });
+
+  registerQuest({
+    id: 'q_defection_payload', name: 'The Payload', act: 3, main: true, after: 'q_defection_exfil',
+    desc: 'Deploy the payload: inject <host>. The trace spike is severe — go in with a clean meter.',
+    reward: {},
+    complete: (shell) => !!shell.state.questFlags.defection_injected || !!shell.state.questFlags.defection_caught,
   });
 }

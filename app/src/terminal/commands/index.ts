@@ -8,6 +8,7 @@ import { shop, buy } from './store-commands';
 import { join } from './faction-commands';
 import { align, vessel } from './vessel-commands';
 import { contracts } from './contract-commands';
+import { handler, inject } from './defection-commands';
 
 export function registerAllCommands(shell: Shell) {
   [
@@ -19,5 +20,6 @@ export function registerAllCommands(shell: Shell) {
     shop, buy, join,
     align, vessel,
     contracts,
+    handler, inject,
   ].forEach(c => shell.register(c));
 }

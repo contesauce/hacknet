@@ -25,6 +25,8 @@ export interface GameState {
   ram: { total: number };        // used is derived live from the process table
   cpuMult: number;                // multiplies every process's CPU cost; upgrades lower it
   crackSpeedMult: number;         // multiplies hydra's crack duration; upgrades lower it
+  traceGainMult: number;          // multiplies trace gained from hydra/inject; faction-modified
+  traceDecayMult: number;         // multiplies passive trace decay while connected; faction-modified
   history: string[];
   questFlags: Record<string, boolean>;
   activeQuests: string[];
@@ -34,6 +36,10 @@ export interface GameState {
   vesselShards: string[];
   faction: string | null;
   factionRep: Record<string, number>;
+  hostileFactions: string[];       // permanently burned bridges — their territory is always dangerous
+  defectionBranch: 'accept' | 'report' | null; // the one-shot defection arc's committed path
+  defectionOldFaction: string | null;           // your faction at the moment the offer landed
+  defectionRival: string | null;                // the faction that made the offer
   shadowChoice: 'phantom' | 'archon' | 'neither' | null; // the VESSEL-endgame allegiance, separate from `faction`
   mail: MailMessage[];
   notes: string[];
@@ -54,6 +60,8 @@ export function newGameState(): GameState {
     ram: { total: 8 },
     cpuMult: 1,
     crackSpeedMult: 1,
+    traceGainMult: 1,
+    traceDecayMult: 1,
     history: [],
     questFlags: {},
     activeQuests: ['q1_boot', 'q1_sandbox', 'q1_market'],
@@ -63,6 +71,10 @@ export function newGameState(): GameState {
     vesselShards: [],
     faction: null,
     factionRep: {},
+    hostileFactions: [],
+    defectionBranch: null,
+    defectionOldFaction: null,
+    defectionRival: null,
     shadowChoice: null,
     mail: [
       {

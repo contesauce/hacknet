@@ -3,13 +3,17 @@ import { registerFaction } from '../core/factions';
 export function registerAllFactions() {
   registerFaction({
     id: 'wraith', name: 'WRAITH COLLECTIVE', tag: 'Speed & Shadows', color: '#cc88ff',
-    desc: 'Fastest tools, minimal footprint. Traces barely touch you once you\'re in.',
+    desc: 'Fastest tools, minimal footprint. Traces barely touch you once you\'re in — but the rig is lean, not sturdy.',
     node: '10.11.0.99',
+    rival: 'bastion',
+    mods: { crackSpeedMult: 0.75, traceGainMult: 0.5, ramDelta: -3 },
   });
   registerFaction({
     id: 'bastion', name: 'BASTION ORDER', tag: 'Fortress & Patience', color: '#66ffaa',
-    desc: 'Hardened, methodical, nearly impossible to trace once dug in.',
+    desc: 'Hardened, methodical, nearly impossible to trace once dug in — but every cycle not spent defending is a cycle you don\'t have.',
     node: '10.44.0.1',
+    rival: 'wraith',
+    mods: { crackSpeedMult: 1.3, cpuMult: 1.15, traceDecayMult: 2.5 },
   });
   registerFaction({
     id: 'broker', name: 'THE BROKER SYNDICATE', tag: 'Intel & Profit', color: '#ffdd44',

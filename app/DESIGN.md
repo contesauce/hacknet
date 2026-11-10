@@ -17,27 +17,54 @@ Two command surfaces over the same engine, picked per save, not two games:
   `use`/`set`/`exploit`). Useful as cert-prep flavor (OSCP-adjacent) without
   forking the game logic — only the command *surface* changes.
 
-## Factions
+## Factions — trade-offs and rivalry shipped
 
-Currently: Wraith Collective (speed/stealth), Bastion Order
-(fortress/patience), Broker Syndicate (intel/profit, store discount) —
-upside-only, no real cost to joining.
+Wraith Collective and Bastion Order are now genuine opposites, not
+palette-swapped upside (`core/factions.ts`'s `FactionDef.mods`, applied on
+join via `applyFactionMods`, reversed on defection):
 
-Planned additions and changes:
+- **Wraith** (speed/shadows): -25% hydra crack time, half the trace gained
+  while cracking — but -3G RAM ceiling. Fast and lean, not sturdy.
+- **Bastion** (fortress/patience): 2.5x faster trace decay once connected
+  — but +30% hydra crack time and +15% CPU cost on everything. Hardened,
+  but every cycle not spent defending is a cycle you don't have.
+- **Broker** stays the neutral, no-stat-edge, universal-discount option.
 
-- **Federal/intelligence** faction(s) — recruit-or-turn framing; legit
-  contracts, better gear, but they can compel missions and going rogue later
-  burns the bridge hard.
-- **Anarchist/anti-surveillance** faction — "reset the tech, not
-  civilization" ideology; disruption/take-down missions, better
-  anonymity/trace-evasion gear, but heat from every government-aligned actor
-  rises faster.
-- **Rogue/freelance** (no faction) as a real third path — worse prices
-  everywhere, nobody's hunting you either.
-- Every faction should have a genuine **downside**, not just a perk: locked
-  out of rival stores, a standing rival that raises trace/heat on their turf,
-  a rival showing up as a hostile actor in `nmap` results. Distinct *mission
-  types* per faction, not palette-swapped quests.
+Wraith and Bastion are mutual rivals (`FactionDef.rival`). Their territory
+is actively dangerous to the other's members and to anyone who's
+permanently burned that bridge (`state.hostileFactions`, see the defection
+arc below) — trace *grows* while connected to hostile-tagged territory
+instead of decaying (`main.ts`'s passive-trace interval,
+`isHostileTerritory()`), and their store locks you out even if you're
+nominally still a "member" (the caught-defection edge case).
+
+Still planned: a **federal/intelligence** faction (recruit-or-turn framing)
+and an **anarchist/anti-surveillance** faction ("reset the tech, not
+civilization"), plus **rogue/freelance** (no faction) as a real third path
+with worse prices everywhere but nobody hunting you either.
+
+### The defection arc — shipped
+
+A one-shot, mostly-permanent choice once you're deep enough into a rivalrous
+faction (`q_defection_offer`: rep 50+ with a faction that has a rival — mail
+arrives, `handler accept|report`):
+
+- **`accept`** (defect): betray your current faction for the rival. Same
+  two mission beats either way — exfiltrate your own faction's
+  `ops_ledger.dat` via `scp`, then `inject <host>` a payload — but on
+  `accept` the payload lands on your *own* (soon former) faction's node.
+  Clean result: you join the rival (mods swap — old reversed, new applied),
+  your old faction goes permanently hostile, +400cr.
+- **`report`** (double agent): stay loyal, play along, and the payload
+  targets the *rival* instead. Clean result: rep jumps hard with your own
+  faction, the rival goes permanently hostile, a small permanent
+  `crackSpeedMult` bonus (insider tradecraft), +400cr.
+- **Caught**: `inject` carries a much bigger trace spike than `hydra` (60
+  vs. 18 per the same formula, still faction-trace-gain-modified) — go in
+  with a hot meter and you blow past 100 mid-deploy. Both factions end up
+  hostile, no reward, no faction swap. This is the real cost of greed —
+  verified in testing by just... playing it too fast and getting caught for
+  real, no scripting required.
 
 ## Contracts (freelance jobs) — shipped, v1
 

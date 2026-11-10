@@ -9,6 +9,7 @@ export interface FileNode {
   password?: string;
   tag?: string;           // short badge shown in `ls -l` (e.g. LOG, SHARD)
   onRead?: string;        // quest-flag id to set when this file is cat'd
+  onExfil?: string;       // quest-flag id to set when this file is scp'd off the host
   vesselShard?: string;   // collected into state.vesselShards when read
 }
 

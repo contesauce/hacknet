@@ -1,7 +1,7 @@
 import type { Command, Shell } from '../shell';
 import { getStore } from '../../core/store';
 import type { StoreDef, StoreItem } from '../../core/store';
-import { getFaction } from '../../core/factions';
+import { getFaction, isHostileTerritory } from '../../core/factions';
 
 function priceFor(shell: Shell, item: StoreItem): number {
   // Broker Syndicate members shop everywhere at a discount.
@@ -14,6 +14,7 @@ function accessibleStore(shell: Shell): StoreDef | undefined {
   const store = host?.store ? getStore(host.store) : undefined;
   if (!store) return undefined;
   if (store.requiresFaction && shell.state.faction !== store.requiresFaction) return undefined;
+  if (store.requiresFaction && isHostileTerritory(shell.state.hostileFactions, shell.state.faction, store.requiresFaction)) return undefined;
   return store;
 }
 
@@ -23,8 +24,8 @@ export const shop: Command = {
     const host = shell.net.get(shell.state.host);
     const rawStore = host?.store ? getStore(host.store) : undefined;
     if (!rawStore) { shell.print('shop: no store here', 'err'); return; }
-    if (rawStore.requiresFaction && shell.state.faction !== rawStore.requiresFaction) {
-      shell.print(`shop: members only (${getFaction(rawStore.requiresFaction)?.name ?? rawStore.requiresFaction})`, 'err');
+    if (!accessibleStore(shell)) {
+      shell.print(`shop: members only (${getFaction(rawStore.requiresFaction!)?.name ?? rawStore.requiresFaction})`, 'err');
       return;
     }
     shell.print(`--- ${rawStore.name} ---`, 'ok');
