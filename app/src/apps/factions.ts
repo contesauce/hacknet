@@ -9,16 +9,19 @@ function draw(container: HTMLElement, shell: Shell) {
     const joined = shell.state.faction === f.id;
     const known = shell.state.discovered.has(f.node);
     const rep = shell.state.factionRep[f.id] ?? 0;
+    const hostile = shell.state.hostileFactions.includes(f.id);
     return `
       <div class="faction-card ${joined ? 'joined' : ''}" style="${joined ? `border-color:${f.color}` : ''}">
         <div style="color:${f.color};font-weight:600">${escapeHtml(f.name)}</div>
         <div class="dim" style="font-size:10px">${escapeHtml(f.tag)}</div>
         <div style="font-size:11px;margin:4px 0">${escapeHtml(f.desc)}</div>
-        ${joined
-          ? `<span class="pill pg">JOINED · rep ${rep}</span>`
-          : known
-            ? `<button class="ubtn" data-join="${f.id}">Join</button>`
-            : `<span class="dim" style="font-size:10px">Not yet found.</span>`}
+        ${hostile
+          ? `<span class="pill" style="background:#ff4444;color:#fff">HOSTILE — burned bridge</span>`
+          : joined
+            ? `<span class="pill pg">JOINED · rep ${rep}</span>`
+            : known
+              ? `<button class="ubtn" data-join="${f.id}">Join</button>`
+              : `<span class="dim" style="font-size:10px">Not yet found.</span>`}
       </div>`;
   }).join('');
 

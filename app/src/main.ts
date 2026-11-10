@@ -13,6 +13,7 @@ import { registerAllContracts } from './data/contracts';
 import { applyFx } from './core/fx';
 import { SidePanel } from './ui/side-panel';
 import { fetchSession, loadRemote, saveRemote } from './core/remote-save';
+import { isHostileTerritory } from './core/factions';
 
 registerAllApps();
 registerAllStores();
@@ -106,7 +107,12 @@ if (session.loggedIn) {
 // Trace decays slowly while not actively cracking something.
 setInterval(() => {
   if (state.host === 'localhost' || shell.busy) return;
-  if (state.trace > 0) state.trace = Math.max(0, state.trace - 1.2);
+  const hostFaction = net.get(state.host)?.faction;
+  if (isHostileTerritory(state.hostileFactions, state.faction, hostFaction)) {
+    state.trace = Math.min(100, state.trace + 1.5);
+  } else if (state.trace > 0) {
+    state.trace = Math.max(0, state.trace - 1.2 * state.traceDecayMult);
+  }
   if (state.trace >= 100) {
     shell.print('╔══════════════════════════════════════╗', 'err');
     shell.print('║  TRACE COMPLETE — CONNECTION SEVERED  ║', 'err');
